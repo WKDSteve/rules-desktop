@@ -394,27 +394,13 @@ pub fn launch(url: &str) -> Result<(), String> {
     if !is_own_link(url) {
         return Err("the link is not the hub's own: not opened".to_owned());
     }
-    // An absolute program: a bare name would be looked for along a PATH that may hold a folder of
-    // somebody else's.
-    let mut command = if cfg!(windows) {
-        let root = std::env::var_os("SystemRoot")
-            .or_else(|| std::env::var_os("windir"))
-            .map(PathBuf::from)
-            .filter(|p| p.is_absolute())
-            .ok_or("no Windows folder: the link is not opened")?;
-        let mut c = std::process::Command::new(root.join("System32").join("rundll32.exe"));
-        c.arg("url.dll,FileProtocolHandler");
-        c
-    } else if cfg!(target_os = "macos") {
-        std::process::Command::new("/usr/bin/open")
-    } else {
-        std::process::Command::new("/usr/bin/xdg-open")
-    };
-    command
-        .arg(url)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("could not start the browser: {e}"))
+    // The port of the link is the only one the browser helper is allowed to open.
+    let port = url
+        .strip_prefix("http://127.0.0.1:")
+        .and_then(|rest| rest.split_once('/'))
+        .and_then(|(port, _)| port.parse::<u16>().ok())
+        .ok_or("the link has no port: not opened")?;
+    appkit_hub::browser::open(url, &[port])
 }
 
 #[cfg(test)]
@@ -441,6 +427,18 @@ mod tests {
             "http://127.0.0.1:17616/#pair=zz",
         ] {
             assert!(!is_own_link(bad), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn a_link_that_is_not_the_hubs_own_is_not_launched() {
+        for bad in [
+            "file:///C:/Windows/System32/calc.exe",
+            "http://127.0.0.1:17616/other",
+            "http://evil.example/#pair=ab",
+        ] {
+            let err = launch(bad).unwrap_err();
+            assert!(err.contains("not opened"), "{bad}: {err}");
         }
     }
 

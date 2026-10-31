@@ -138,6 +138,17 @@ impl Runtime for RulesRuntime {
     fn stop(&self) {
         self.stop_jobs();
     }
+
+    fn setup_required(&self) -> Option<&'static str> {
+        setup_reason(self.status.problem)
+    }
+}
+
+/// The problems of the start that only a person can fix by setting the app up (no vault, or one
+/// that is not a folder): `hello` reports them as `setup_required`. A missing Neovim or engine is
+/// a problem of the machine, not of the first start.
+fn setup_reason(problem: Option<&'static str>) -> Option<&'static str> {
+    problem.filter(|p| matches!(*p, "no_vault" | "vault_not_a_directory"))
 }
 
 impl Drop for RulesRuntime {
@@ -359,6 +370,23 @@ mod tests {
             capabilities: Vec::new(),
         };
         RulesRuntime::new(None, None, status, Arc::new(policy), None, None, None)
+    }
+
+    #[test]
+    fn only_a_missing_or_unusable_vault_asks_for_the_setup() {
+        for (problem, reason) in [
+            (Some("no_vault"), Some("no_vault")),
+            (Some("vault_not_a_directory"), Some("vault_not_a_directory")),
+            (Some("nvim_not_found"), None),
+            (Some("engine_not_found"), None),
+            (None, None),
+        ] {
+            assert_eq!(setup_reason(problem), reason, "{problem:?}");
+        }
+        let mut rt = runtime();
+        assert_eq!(rt.setup_required(), None);
+        rt.status.problem = Some("no_vault");
+        assert_eq!(rt.setup_required(), Some("no_vault"));
     }
 
     #[test]

@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "appkit-core"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.25.1#cac769a78b71d39357df193e5c7bd3c8f0450ddb"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.27.0#518092716d00fb3fc18ce1b418032f71c3414817"
 dependencies = [
  "getrandom",
  "serde",
@@ -16,7 +16,7 @@ dependencies = [
 [[package]]
 name = "appkit-hub"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.25.1#cac769a78b71d39357df193e5c7bd3c8f0450ddb"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.27.0#518092716d00fb3fc18ce1b418032f71c3414817"
 dependencies = [
  "appkit-core",
  "axum",
@@ -32,13 +32,14 @@ dependencies = [
 [[package]]
 name = "appkit-testkit"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.25.1#cac769a78b71d39357df193e5c7bd3c8f0450ddb"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.27.0#518092716d00fb3fc18ce1b418032f71c3414817"
 dependencies = [
  "appkit-core",
  "appkit-hub",
  "axum",
  "serde_json",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
