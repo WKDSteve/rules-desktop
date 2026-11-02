@@ -13,11 +13,9 @@
 //!   that is not running is asked one `hello` (which starts a host that can start) and the page is
 //!   refused if it still does not run, and the host is looked at again before every rule, so a host
 //!   that dies or is left alone while a page is read ends the page instead of a process per rule.
-//! - What each page came to is noted for [`crate::indexer`], which builds the index again when a page
-//!   for a change failed or was of another state than the change.
 
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use appkit_hub::BoxFuture;
 use serde::Deserialize;
@@ -61,31 +59,17 @@ impl HostProbe for CliEngine {
     }
 }
 
-/// What the pages came to since the log was last taken.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct PageLog {
-    /// A page was refused.
-    pub(crate) failed: bool,
-    /// The `rev` of each page of named ids that was answered.
-    pub(crate) id_revs: Vec<String>,
-}
-
 /// An engine that also answers `bodies`.
 pub struct BodiesEngine {
     inner: Arc<dyn Engine>,
     /// `None`: every question is cheap (no host to wait for), the texts are read.
     host: Option<Arc<dyn HostProbe>>,
-    log: Mutex<PageLog>,
 }
 
 impl BodiesEngine {
     #[must_use]
     pub fn new(inner: Arc<dyn Engine>) -> Self {
-        Self {
-            inner,
-            host: None,
-            log: Mutex::new(PageLog::default()),
-        }
+        Self { inner, host: None }
     }
 
     /// Read the texts only while the host `probe` tells of runs.
@@ -93,16 +77,6 @@ impl BodiesEngine {
     pub fn with_host(mut self, probe: Arc<dyn HostProbe>) -> Self {
         self.host = Some(probe);
         self
-    }
-
-    /// What the pages came to since the last call.
-    pub(crate) fn take_log(&self) -> PageLog {
-        std::mem::take(
-            &mut *self
-                .log
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        )
     }
 
     async fn host_runs(&self) -> bool {
@@ -181,16 +155,6 @@ impl BodiesEngine {
     async fn bodies(&self, params: Option<&Value>) -> Result<Reply, EngineError> {
         let request = Request::read(params);
         let result = self.read(&request).await;
-        let mut log = self
-            .log
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        match &result {
-            Ok((rev, _)) if request.ids.is_some() => log.id_revs.push(rev.clone()),
-            Ok(_) => {}
-            Err(_) => log.failed = true,
-        }
-        drop(log);
         result.map(|(_, page)| Reply {
             kind: Calls::Bodies.reply_kind().to_owned(),
             text: page.to_string(),
@@ -301,6 +265,7 @@ impl Engine for BodiesEngine {
 #[cfg(test)]
 pub(crate) mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Mutex;
 
     use super::*;
     use crate::engine::EngineRefusal;
@@ -546,7 +511,6 @@ pub(crate) mod tests {
             .unwrap_err();
         assert!(err.to_string().contains("kept changing"), "{err}");
         assert_eq!(fake.count("snapshot"), PAGE_TRIES);
-        assert!(e.take_log().failed, "the refusal is noted for the indexer");
     }
 
     #[tokio::test]

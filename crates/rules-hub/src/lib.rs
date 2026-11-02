@@ -19,7 +19,6 @@ pub mod background;
 pub mod bodies;
 pub mod editor;
 pub mod engine;
-mod indexer;
 mod live;
 pub mod locate;
 pub mod policy;

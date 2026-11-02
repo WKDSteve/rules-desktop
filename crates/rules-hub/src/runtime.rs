@@ -16,7 +16,6 @@ use tokio::task::JoinHandle;
 use crate::bodies::{BodiesEngine, HostProbe};
 use crate::editor::FileOpener;
 use crate::engine::{Calls, Engine};
-use crate::indexer::{self, Indexer};
 use crate::locate::Locate;
 use crate::sources::{SourceFile, SourcePolicy};
 use crate::store::{self, Cached, RefreshOptions, SnapshotStore, StoreOptions, SHAPE};
@@ -232,13 +231,12 @@ impl RulesRuntime {
                 Some(probe) => bodies.with_host(probe),
                 None => bodies,
             });
-            let index = SearchIndex::new(Arc::clone(&bodies) as Arc<dyn Engine>, Calls::Bodies);
-            (index, bodies)
+            SearchIndex::new(bodies as Arc<dyn Engine>, Calls::Bodies)
         });
-        let search = indexing.as_ref().map(|(index, _)| Arc::clone(index));
+        let search = indexing.clone();
         let mut jobs = Vec::new();
-        if let Some((index, bodies)) = indexing {
-            jobs.push(indexer::spawn(Indexer::new(index, bodies), &store));
+        if let Some(index) = indexing {
+            jobs.push(appkit_hub::search::spawn_indexer(index, &store));
         }
         // The watcher only says "look again"; the refresher does the looking.
         let (mut hints, mut watcher) = (None, None);
