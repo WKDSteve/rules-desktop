@@ -21,7 +21,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "appkit-ui": "github:WKDSteve/appkit#v0.27.0&path:ui-kit",
+    "appkit-ui": "github:WKDSteve/appkit#v0.29.0&path:ui-kit",
     "markdown-it": "^15.0.3"
   }
 }

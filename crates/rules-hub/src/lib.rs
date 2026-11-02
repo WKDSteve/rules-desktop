@@ -147,6 +147,7 @@ pub async fn start(s: Start) -> std::io::Result<RunningServer> {
             instance: s.instance,
             app: IDENTITY.app,
             version: version(),
+            build_id: BUILD,
             // `ops` takes writes and dry runs (only its body tells them apart: the writes are counted again,
             // strictly, by the handler) and has the coarse limit of the writes.
             guard_rules: GuardRules::new(IDENTITY.route("hello"), [IDENTITY.route("ops")]),
