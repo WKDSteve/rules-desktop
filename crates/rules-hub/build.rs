@@ -57,6 +57,18 @@ fn main() {
     // A path that is not there: always "changed", so always run (see above).
     println!("cargo:rerun-if-changed=ui-dist-is-looked-at-by-every-build");
 
+    // The icon of the program, which Explorer shows and a link takes from its target. The file is
+    // the compiled resource the icon generator writes; the linker of MSVC takes it as it is.
+    if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
+        let res = manifest
+            .join("..")
+            .join("..")
+            .join("assets")
+            .join("rules-desktop.res");
+        println!("cargo:rerun-if-changed={}", res.display());
+        println!("cargo:rustc-link-arg-bins={}", res.display());
+    }
+
     let mut entries: Vec<(String, PathBuf)> = Vec::new();
     if dist.join("index.html").is_file() {
         entries.push(("index.html".to_owned(), dist.join("index.html")));
