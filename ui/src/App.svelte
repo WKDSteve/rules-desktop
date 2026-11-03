@@ -8,7 +8,8 @@
   import { kitTexts, lookup } from 'appkit-ui/i18n';
   import MenuBar, { type Menu } from 'appkit-ui/MenuBar.svelte';
   import { installNav } from 'appkit-ui/nav';
-  import { isNavState, VIEWS, type App, type NavState, type Theme } from './lib/app.svelte';
+  import { routeHref } from 'appkit-ui/route';
+  import { isNavState, navRoute, routeNav, VIEWS, type App, type NavState, type Theme } from './lib/app.svelte';
   import { LANGS, translate, type Key, type Lang } from './lib/i18n';
   import { resolveKey } from 'appkit-ui/keymap';
   import { keymap, type ChordState } from './lib/keys';
@@ -47,13 +48,14 @@
     return () => app.stop();
   });
 
-  // Back and Forward: the view and the open rule are places of the tab's history. The state is in `history.state`,
-  // not in the address (appkit-ui/nav).
+  // Back and Forward: the view and the open rule are places of the tab's history. The state is in `history.state`, and
+  // the place is in the fragment of the address too (appkit-ui/nav): a reload and a link in a new tab open it.
   const nav = installNav<NavState>({
     history: window.history,
     window,
     isState: isNavState,
     restore: (place) => app.restoreNav(place),
+    address: { location: window.location, toRoute: navRoute, fromRoute: routeNav },
   });
   $effect(() => () => nav.stop());
   $effect(() => {
@@ -79,6 +81,9 @@
           label: t(`nav.${view}`),
           checked: app.view === view,
           onselect: () => app.setView(view),
+          // A link to the view: the browser opens it in a new tab (middle click, Ctrl+click, its context menu), which
+          // takes the session of an open tab.
+          href: routeHref(location, { view }),
         })),
         { kind: 'separator' as const },
         { kind: 'action' as const, label: t('menu.rescan'), onselect: () => void app.reload() },
@@ -166,9 +171,18 @@
   <MenuBar {menus} label={t('menu.label')} />
   {#if app.phase === 'ready'}
     <nav aria-label={t('nav.label')}>
+      <!-- Each view is a link to its place: a plain click goes there in the page; the browser's ways to open a link
+           (middle click, Ctrl+click, Shift+click, its context menu) open it in a new tab, which takes the session of
+           an open tab (appkit-ui/handoff). -->
       {#each VIEWS as view (view)}
-        <button type="button" aria-current={app.view === view ? 'page' : undefined} onclick={() => app.setView(view)}
-          >{t(`nav.${view}`)}</button
+        <a
+          href={routeHref(location, { view })}
+          aria-current={app.view === view ? 'page' : undefined}
+          onclick={(e) => {
+            if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+            e.preventDefault();
+            app.setView(view);
+          }}>{t(`nav.${view}`)}</a
         >
       {/each}
     </nav>
@@ -263,14 +277,16 @@
     display: flex;
     gap: 0.25rem;
   }
-  nav button {
+  nav a {
     background: none;
     border: 1px solid transparent;
     border-radius: var(--radius);
     padding: 0.25rem 0.7rem;
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
   }
-  nav button[aria-current='page'] {
+  nav a[aria-current='page'] {
     background: var(--accent-soft);
     border-color: var(--accent);
   }

@@ -5,8 +5,10 @@ import {
   EXCHANGE_RETRIES,
   GONE_SETTLE_MS,
   isNavState,
+  navRoute,
   PREF_KEYS,
   RESCAN_EVERY_MS,
+  routeNav,
   SEARCH_DELAY_MS,
   SEARCH_RETRIES,
   SEARCH_RETRY_MS,
@@ -39,6 +41,68 @@ async function ready(paired = true) {
 
 afterEach(() => {
   for (const app of apps.splice(0)) app.stop();
+});
+
+describe('the place in the address', () => {
+  it('a route names a view and the rule open in it, and reads back', () => {
+    const place = { view: 'rules' as const, id: 'DEP-01' };
+    expect(navRoute(place)).toEqual({ view: 'rules', rule: 'DEP-01' });
+    expect(routeNav(navRoute(place))).toEqual(place);
+    expect(routeNav({ view: 'coverage' })).toEqual({ view: 'coverage', id: null });
+    expect(routeNav({ view: 'nope', rule: 'DEP-01' })).toBeNull();
+    expect(routeNav({ rule: 'DEP-01' })).toBeNull();
+    // A rule id that no place takes is left out, the view stays.
+    expect(routeNav({ view: 'rules', rule: 'x'.repeat(101) })).toEqual({ view: 'rules', id: null });
+  });
+
+  it('the page opens on the place the address named, its rule read at once', async () => {
+    const s = setup();
+    s.app.openPlace({ view: 'rules', id: 'DEP-01' });
+    expect(s.app.view).toBe('rules');
+    await s.app.start(null);
+    await vi.waitFor(() => expect(s.app.detail.state).toBe('ok'));
+    expect(s.app.navState()).toEqual({ view: 'rules', id: 'DEP-01' });
+  });
+
+  it('keeps the place in the address when it takes the pairing code out', async () => {
+    const s = setup(false);
+    const replaced: string[] = [];
+    const history = { replaceState: (_d: unknown, _u: string, url?: string | URL | null) => void replaced.push(String(url)) };
+    await s.app.startFrom({ hash: `#pair=${CODE}&view=rules`, pathname: '/', search: '' }, history);
+    expect(replaced).toEqual(['/#view=rules']);
+  });
+});
+
+describe('the session for a new tab', () => {
+  it('a tab without a session and without a code takes the session of an open tab', async () => {
+    const s = setup(false);
+    const ask = vi.fn(async () => TOKEN);
+    const app = new App({ ...s.env, askSession: ask });
+    apps.push(app);
+    await app.start(null);
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(app.phase).toBe('ready');
+    expect(s.session.getItem(TOKEN_KEY)).toBe(TOKEN);
+  });
+
+  it('asks no other tab with a session of its own or with a code, and pairs when none answers', async () => {
+    const ask = vi.fn(async () => null);
+    const own = setup();
+    const a = new App({ ...own.env, askSession: ask });
+    apps.push(a);
+    await a.start(null);
+    const coded = setup(false);
+    const b = new App({ ...coded.env, askSession: ask });
+    apps.push(b);
+    await b.start(CODE);
+    expect(ask).not.toHaveBeenCalled();
+    const lone = setup(false);
+    const c = new App({ ...lone.env, askSession: ask });
+    apps.push(c);
+    await c.start(null);
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(c.phase).toBe('needs_pairing');
+  });
 });
 
 describe('the start', () => {

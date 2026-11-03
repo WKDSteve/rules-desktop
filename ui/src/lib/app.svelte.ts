@@ -3,6 +3,7 @@
 // `prefs` holds the language, the theme, the single-key switch and the frecency of actions, `session` the token.
 
 import { takePairingCode, type HistoryLike, type LocationLike } from 'appkit-ui/pair';
+import type { Route } from 'appkit-ui/route';
 import { Preferences, StreamSession } from 'appkit-ui/session';
 import type { SseMessage } from 'appkit-ui/sse';
 import { ApiError, type ClassChange, type Hub, type HubSources } from './api';
@@ -41,17 +42,34 @@ export const VIEWS: readonly View[] = ['overview', 'families', 'rules', 'coverag
 
 /**
  * A place the person can go back to: the view and the rule that is open in it. Filters, the search and the cursor are
- * not places (typing a letter must not make an entry), and nothing of this goes into the address.
+ * not places (typing a letter must not make an entry). The place is also in the fragment of the address
+ * (`#view=rules&rule=<id>`, appkit-ui/nav): a reload, a copied address and a link opened in a new tab show it.
  */
 export interface NavState {
   view: View;
   id: string | null;
 }
 
+/** The longest rule id a place takes. */
+const MAX_RULE_ID = 100;
+
 export function isNavState(value: unknown): value is NavState {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as { view?: unknown; id?: unknown };
-  return VIEWS.includes(v.view as View) && (v.id === null || (typeof v.id === 'string' && v.id.length <= 100));
+  return VIEWS.includes(v.view as View) && (v.id === null || (typeof v.id === 'string' && v.id.length <= MAX_RULE_ID));
+}
+
+/** The route of a place: its view, and the rule open in it. */
+export function navRoute(place: NavState): Route {
+  return place.id === null ? { view: place.view } : { view: place.view, rule: place.id };
+}
+
+/** The place a route names, or null (no view, a name that is no view). A rule id that cannot be one is left out. */
+export function routeNav(route: Record<string, string>): NavState | null {
+  const view = route.view;
+  if (view === undefined || !VIEWS.includes(view as View)) return null;
+  const id = route.rule;
+  return { view: view as View, id: id !== undefined && id.length <= MAX_RULE_ID ? id : null };
 }
 
 export type Detail =
@@ -84,6 +102,11 @@ export interface Env {
   fetchFn: typeof fetch;
   sleep(ms: number): Promise<void>;
   now(): number;
+  /**
+   * Ask the open tabs of the page for their session (appkit-ui/handoff): a tab the browser opened from a link has none
+   * of its own. The token, or null when no tab answered.
+   */
+  askSession?(): Promise<string | null>;
 }
 
 export const TOKEN_KEY = 'rules-desktop.session';
@@ -247,7 +270,16 @@ export class App {
 
   /** Bring the page up from its address: a pairing code in the fragment is taken out of it at once and traded. */
   startFrom(location: LocationLike, history: HistoryLike): Promise<void> {
-    return this.start(takePairingCode(location, history));
+    return this.start(takePairingCode(location, history, undefined, { keepRoute: true }));
+  }
+
+  /** The rule the address named open in its view, waiting for the session (`openPlace`). */
+  private placeId: string | null = null;
+
+  /** The address named a place (a reload, a link opened in a new tab): the page opens on it once it is paired. */
+  openPlace(place: NavState): void {
+    this.view = place.view;
+    this.placeId = place.id;
   }
 
   /** Bring the page up. `code` is a pairing code taken from the address. */
@@ -288,6 +320,15 @@ export class App {
         }
       }
     }
+    // A tab without a session and without a code (opened from a link) takes the session of an open tab of the page.
+    if (token === null && !code && this.env.askSession) {
+      token = await this.env.askSession();
+      if (this.stopped) return;
+      if (token !== null) {
+        const taken = token;
+        safe(() => this.env.session.setItem(TOKEN_KEY, taken));
+      }
+    }
     if (token === null) {
       this.phase = 'needs_pairing';
       return;
@@ -310,6 +351,11 @@ export class App {
       if (this.stopped) return;
     }
     this.problem = null;
+    // The rule of the place the address named is read beside the list: the page is at that place from its first
+    // picture on (the history records it as the entry it started on).
+    const place = this.placeId;
+    this.placeId = null;
+    if (place !== null) void this.openDetail(place);
     await this.refresh();
     if (this.stopped || !this.env.hub.hasToken) return;
     void this.followStream();

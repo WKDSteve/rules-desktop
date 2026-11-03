@@ -35,7 +35,7 @@ async function pair(page: Page): Promise<void> {
 }
 
 async function view(page: Page, name: 'Overview' | 'Families' | 'Rules' | 'Coverage' | 'Waivers'): Promise<void> {
-  await page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  await page.getByRole('navigation').getByRole('link', { name, exact: true }).click();
 }
 
 async function noProblems(page: Page): Promise<void> {
@@ -54,7 +54,8 @@ test('the link pairs the tab, leaves no code in the address and sets no cookie',
   await page.goto(pairingLink(state().config));
   await expect(page.getByRole('menubar')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  expect(page.url()).toBe(`${ORIGIN}/`);
+  // No code is left in the address; what is there is the place of the page.
+  await expect.poll(() => page.url()).toBe(`${ORIGIN}/#view=overview`);
   expect(await page.evaluate(() => sessionStorage.getItem('rules-desktop.session'))).toMatch(/^[0-9a-f]{64}$/);
   expect(await context.cookies()).toEqual([]);
   // Nothing of a rule set stays in the browser: only the session, per tab.
@@ -198,7 +199,7 @@ test('German, the dark theme and the palette', async ({ page }) => {
   await pair(page);
   await page.getByRole('menuitem', { name: 'Language', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Deutsch', exact: true }).click();
-  await expect(page.getByRole('navigation').getByRole('button', { name: 'Regeln', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Regeln', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.lang)).toBe('de');
   await page.getByRole('menuitem', { name: 'Farben', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'dunkel', exact: true }).click();
@@ -254,15 +255,15 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
-test('Back and Forward walk the views and the open rule, and the address stays clean', async ({ page }) => {
+test('Back and Forward walk the views and the open rule, and the address names the place', async ({ page }) => {
   await pair(page);
   const detail = page.getByRole('complementary', { name: 'Rule' });
   await view(page, 'Families');
   await view(page, 'Rules');
   await page.locator('tr#rule-AA-01').getByRole('button').click();
   await expect(detail.getByRole('heading', { name: 'AA-01' })).toBeVisible();
-  // The place is in the history of the tab, not in the address: no rule id, no fragment.
-  expect(page.url()).toBe(`${ORIGIN}/`);
+  // The place is in the fragment of the address too: a reload and a link in a new tab open it.
+  await expect.poll(() => page.url()).toBe(`${ORIGIN}/#view=rules&rule=AA-01`);
   await page.goBack();
   await expect(detail).toHaveCount(0);
   await expect(page.locator('tr#rule-AA-01')).toBeVisible();
@@ -274,7 +275,34 @@ test('Back and Forward walk the views and the open rule, and the address stays c
   await page.goForward();
   await page.goForward();
   await expect(detail.getByRole('heading', { name: 'AA-01' })).toBeVisible();
-  expect(page.url()).toBe(`${ORIGIN}/`);
+  await expect.poll(() => page.url()).toBe(`${ORIGIN}/#view=rules&rule=AA-01`);
+  // A reload opens the same place.
+  await page.reload();
+  await expect(detail.getByRole('heading', { name: 'AA-01' })).toBeVisible();
+});
+
+test('a view is a link: a new tab at its address takes the session of the open tab and shows that view', async ({ page, context }) => {
+  await pair(page);
+  const link = page.getByRole('navigation').getByRole('link', { name: 'Families', exact: true });
+  const href = await link.getAttribute('href');
+  expect(href).toBe('/#view=families');
+  // The menu's item of the view is the same link.
+  await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+  expect(await page.getByRole('menuitemradio', { name: 'Families', exact: true }).getAttribute('href')).toBe('/#view=families');
+  await page.keyboard.press('Escape');
+  // A tab the browser opens itself (its context menu, a middle click): it gets no copy of this tab's session storage.
+  const tab = await context.newPage();
+  await prepare(tab);
+  await tab.goto(href!);
+  await expect(tab.getByRole('table', { name: 'Families' })).toBeVisible();
+  await expect(tab.getByRole('status').filter({ hasText: 'live' })).toBeVisible();
+  expect(await tab.evaluate(() => sessionStorage.getItem('rules-desktop.session'))).toBe(state().token);
+  await noProblems(tab);
+  await tab.close();
+  // A plain click on the link stays in the page.
+  await link.click();
+  await expect(page.getByRole('table', { name: 'Families' })).toBeVisible();
+  expect(context.pages()).toHaveLength(1);
 });
 
 test('a window that gets the focus back asks the hub for a scan, at most every few seconds', async ({ page }) => {
@@ -661,7 +689,7 @@ test('help: the documentation opens from the menu and is searched, the name lead
 
   // The name at the left of the bar goes back to the overview.
   await page.getByRole('button', { name: 'Rules', exact: true }).first().click();
-  await expect(page.getByRole('navigation').getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
 
   // The dialog of a new rule: empty, a click beside it closes it; with a title typed in, it stays.
   await view(page, 'Rules');
