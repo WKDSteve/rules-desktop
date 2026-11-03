@@ -54,6 +54,8 @@ test('the link pairs the tab, leaves no code in the address and sets no cookie',
   await page.goto(pairingLink(state().config));
   await expect(page.getByRole('menubar')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  // The icon in the bar is really drawn: the policy of the page lets it through.
+  await expect.poll(() => page.locator('.kit-brand img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
   // No code is left in the address; what is there is the place of the page.
   await expect.poll(() => page.url()).toBe(`${ORIGIN}/#view=overview`);
   expect(await page.evaluate(() => sessionStorage.getItem('rules-desktop.session'))).toMatch(/^[0-9a-f]{64}$/);

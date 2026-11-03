@@ -3,6 +3,8 @@
   // depends on the phase of the page (pairing, offline, engine not ready, ready); everything else is the state of
   // `app` (lib/app.svelte.ts).
   import Brand from 'appkit-ui/Brand.svelte';
+  // The mark of the app, from assets/icons of this repository (rule APP-11).
+  import logo from '../../assets/icons/rules-desktop/rules-desktop-small.svg?url';
   import DocsDialog from 'appkit-ui/DocsDialog.svelte';
   import { helpItems } from 'appkit-ui/docs';
   import { kitTexts, lookup } from 'appkit-ui/i18n';
@@ -167,7 +169,11 @@
 <a class="skip" href="#content">{t('app.skip')}</a>
 
 <header>
-  <h1><Brand label={t('app.title')} hint={t('hint.brand')} onclick={() => app.setView('overview')} /></h1>
+  <h1>
+    <Brand label={t('app.title')} hint={t('hint.brand')} onclick={() => app.setView('overview')}>
+      <span class="brand-mark"><img src={logo} alt="" width="20" height="20" />{t('app.title')}</span>
+    </Brand>
+  </h1>
   <MenuBar {menus} label={t('menu.label')} />
   {#if app.phase === 'ready'}
     <nav aria-label={t('nav.label')}>
@@ -249,6 +255,11 @@
 <Toast {app} />
 
 <style>
+  .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
   .skip {
     position: absolute;
     left: -999px;

@@ -1,3 +1,5 @@
+![rules-desktop](assets/icons/rules-desktop/png/rules-desktop-128.png)
+
 # rules-desktop
 
 A local web UI and desktop app for the rule set of [rules.nvim](https://github.com/WKDSteve/rules.nvim):
