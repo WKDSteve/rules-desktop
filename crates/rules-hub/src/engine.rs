@@ -24,6 +24,7 @@ pub const REQUIRED_CAPABILITIES: &[&str] = &["hello", "snapshot", "rule"];
 /// [`cli_config`] always passes none; the hub reads the rule sets of the vault only.
 pub const DIALECT: EngineDialect = EngineDialect {
     schema: SCHEMA,
+    schema_tag: None,
     error_kind: "rules.error",
     host_script: "rules-host.lua",
     vault_var: "RULES_VAULT",
