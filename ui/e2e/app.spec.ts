@@ -307,6 +307,24 @@ test('a view is a link: a new tab at its address takes the session of the open t
   expect(context.pages()).toHaveLength(1);
 });
 
+test('a new tab takes the session of an open tab that answers late', async ({ page, context }) => {
+  await pair(page);
+  const tab = await context.newPage();
+  await prepare(tab);
+  // A busy machine: the open tab answers long after the new tab stopped waiting and offered to pair.
+  const busy = page.evaluate(() => {
+    const end = performance.now() + 1500;
+    while (performance.now() < end);
+  });
+  await tab.goto('/#view=families');
+  await busy;
+  await expect(tab.getByRole('table', { name: 'Families' })).toBeVisible();
+  await expect(tab.getByRole('status').filter({ hasText: 'live' })).toBeVisible();
+  expect(await tab.evaluate(() => sessionStorage.getItem('rules-desktop.session'))).toBe(state().token);
+  await noProblems(tab);
+  await tab.close();
+});
+
 test('a window that gets the focus back asks the hub for a scan, at most every few seconds', async ({ page }) => {
   const rescans: string[] = [];
   page.on('request', (r) => {

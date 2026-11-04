@@ -103,6 +103,50 @@ describe('the session for a new tab', () => {
     expect(ask).toHaveBeenCalledTimes(1);
     expect(c.phase).toBe('needs_pairing');
   });
+
+  it('takes an answer that comes after the wait, and keeps it', async () => {
+    const s = setup(false);
+    let late: (token: string) => void = () => {};
+    const app = new App({
+      ...s.env,
+      askSession: async (onLate) => {
+        late = onLate;
+        return null;
+      },
+    });
+    apps.push(app);
+    await app.start(null);
+    expect(app.phase).toBe('needs_pairing');
+    late(TOKEN);
+    expect(s.session.getItem(TOKEN_KEY)).toBe(TOKEN);
+    await vi.waitFor(() => expect(app.phase).toBe('ready'));
+  });
+
+  it('a late answer changes nothing in a tab that has paired since, or was stopped', async () => {
+    let late: (token: string) => void = () => {};
+    const askSession = async (onLate: (token: string) => void): Promise<null> => {
+      late = onLate;
+      return null;
+    };
+    const paired = setup(false);
+    const a = new App({ ...paired.env, askSession });
+    apps.push(a);
+    await a.start(null);
+    const answer = late;
+    await a.start(CODE);
+    expect(a.phase).toBe('ready');
+    const own = paired.session.getItem(TOKEN_KEY);
+    answer('late-token-of-another-tab');
+    expect(paired.session.getItem(TOKEN_KEY)).toBe(own);
+
+    const gone = setup(false);
+    const b = new App({ ...gone.env, askSession });
+    apps.push(b);
+    await b.start(null);
+    b.stop();
+    late(TOKEN);
+    expect(gone.session.getItem(TOKEN_KEY)).toBeNull();
+  });
 });
 
 describe('the start', () => {

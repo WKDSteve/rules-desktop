@@ -37,12 +37,13 @@ const env: Env = {
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   ...(channel
     ? {
-        askSession: () =>
+        askSession: (onLate) =>
           askForSession({
             channel: channel as ChannelLike,
             random: () => crypto.getRandomValues(new Uint8Array(16)),
             setTimeout: (run, ms) => window.setTimeout(run, ms),
             clearTimeout: (handle) => window.clearTimeout(handle as number),
+            onLate,
           }),
       }
     : {}),

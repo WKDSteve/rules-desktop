@@ -106,7 +106,7 @@ export interface Env {
    * Ask the open tabs of the page for their session (appkit-ui/handoff): a tab the browser opened from a link has none
    * of its own. The token, or null when no tab answered.
    */
-  askSession?(): Promise<string | null>;
+  askSession?(onLate: (token: string) => void): Promise<string | null>;
 }
 
 export const TOKEN_KEY = 'rules-desktop.session';
@@ -322,7 +322,7 @@ export class App {
     }
     // A tab without a session and without a code (opened from a link) takes the session of an open tab of the page.
     if (token === null && !code && this.env.askSession) {
-      token = await this.env.askSession();
+      token = await this.env.askSession((late) => this.takeLateSession(late));
       if (this.stopped) return;
       if (token !== null) {
         const taken = token;
@@ -359,6 +359,13 @@ export class App {
     await this.refresh();
     if (this.stopped || !this.env.hub.hasToken) return;
     void this.followStream();
+  }
+
+  /** An open tab answered after the wait, so this tab offers to pair: it takes the session, unless it has paired since. */
+  private takeLateSession(token: string): void {
+    if (this.stopped || this.phase !== 'needs_pairing') return;
+    safe(() => this.env.session.setItem(TOKEN_KEY, token));
+    void this.start(null);
   }
 
   stop(): void {
