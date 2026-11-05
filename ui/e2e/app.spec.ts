@@ -231,6 +231,12 @@ for (const scheme of ['light', 'dark'] as const) {
     await view(page, 'Rules');
     await expect(page.locator('tr#rule-AA-01')).toBeVisible();
     await expectAccessible(page, `rules ${scheme}`);
+    // Hover and focus show the colours of the app's palette (the accent, the focus ring): no violation either.
+    await page.getByRole('menubar').getByRole('menuitem').first().hover();
+    await expectAccessible(page, `rules, the pointer on the menu bar ${scheme}`);
+    await page.locator('tr#rule-AA-01').getByRole('button').focus();
+    await expect(page.locator('tr#rule-AA-01').getByRole('button')).toBeFocused();
+    await expectAccessible(page, `rules, a rule in focus ${scheme}`);
     await page.locator('tr#rule-AA-01').getByRole('button').click();
     await expect(page.getByRole('complementary', { name: 'Rule' })).toBeVisible();
     await expectAccessible(page, `detail ${scheme}`);
