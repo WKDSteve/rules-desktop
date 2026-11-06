@@ -1,0 +1,74 @@
+# What a user does, on what was just published: install.ps1 of `latest`, the way `irm | iex` does it, then the program
+# has to answer, and the uninstall has to take it away. A wrong checksum has to stop the install.
+#
+# On windows-latest, a throwaway VM, on purpose: the self-hosted runner is the maintainer's machine, and the install would
+# replace the hub running there. The token is read-only and only reads the public release, so there is nothing on this VM
+# to lose. Windows PowerShell 5.1 is the shell, the one a person has by default.
+
+name: published
+
+on:
+  workflow_run:
+    workflows: [rolling]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: published
+  cancel-in-progress: true
+
+env:
+  BASE: https://github.com/${{ github.repository }}/releases/download/latest
+
+jobs:
+  published:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: A wrong checksum stops the install
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'wrong'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $file = Join-Path $dir 'rules-hub-windows-x86_64.exe'
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:BASE/rules-hub-windows-x86_64.exe" -OutFile $file
+          $sums = Join-Path $dir 'SHA256SUMS'
+          Set-Content -Path $sums -Value "$('0' * 64)  rules-hub-windows-x86_64.exe"
+          $script = [scriptblock]::Create((Invoke-RestMethod -Uri "$env:BASE/install.ps1"))
+          $refused = $false
+          try { & $script -File $file -Sums $sums -AllowElevated } catch { $refused = $true; Write-Host "refused: $_" }
+          if (-not $refused) { throw 'a wrong checksum did not stop the install' }
+          if (Test-Path (Join-Path $env:LOCALAPPDATA 'rules-desktop\bin\rules-hub.exe')) { throw 'the program was installed all the same' }
+
+      - name: Install from latest, serve, answer, uninstall
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ([scriptblock]::Create((Invoke-RestMethod -Uri "$env:BASE/install.ps1"))) -AllowElevated
+          $hub = Join-Path $env:LOCALAPPDATA 'rules-desktop\bin\rules-hub.exe'
+          if (-not (Test-Path $hub)) { throw "no program at $hub" }
+          & $hub --version
+          if ($LASTEXITCODE -ne 0) { throw "--version failed ($LASTEXITCODE)" }
+          $server = Start-Process -FilePath $hub -ArgumentList 'serve', '--port', '17999' -PassThru -NoNewWindow
+          try {
+            $answer = $null
+            $deadline = [DateTime]::UtcNow.AddSeconds(30)
+            while ([DateTime]::UtcNow -lt $deadline -and -not $answer) {
+              Start-Sleep -Milliseconds 500
+              try { $answer = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:17999/' -TimeoutSec 2 } catch { }
+            }
+            if (-not $answer -or $answer.StatusCode -ne 200) { throw 'the installed hub did not answer within 30 s' }
+            Write-Host "answer: $($answer.StatusCode), $($answer.Content.Length) bytes"
+          } finally {
+            if (-not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+          }
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:BASE/uninstall.ps1" -OutFile (Join-Path $env:RUNNER_TEMP 'uninstall.ps1')
+          & (Join-Path $env:RUNNER_TEMP 'uninstall.ps1')
+          if (Test-Path $hub) { throw "the uninstall left $hub" }
