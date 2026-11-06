@@ -8,6 +8,8 @@
 //!   a `rev`, and every `rule` document the `rev` of the snapshot the ids came from (K9). Else the page
 //!   is read again from a new snapshot, at most [`PAGE_TRIES`] times, and then refused; the index keeps
 //!   what it had.
+//! - The first try of a page takes the snapshot the store holds: a scan of the real rule sets takes about 280 ms in a running
+//!   host, and the index reads 100 rules a page, so asking anew cost six scans per change. Only a try after that scans.
 //! - A page costs a `rule` question per rule. Without a running host each is a Neovim process of its
 //!   own, so with a [`HostProbe`] the texts are only read while the engine's host runs (K10): a host
 //!   that is not running is asked one `hello` (which starts a host that can start) and the page is
@@ -22,6 +24,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::engine::{CallFuture, Calls, CliEngine, Engine, EngineError, Method, Reply};
+use crate::store::SnapshotStore;
 
 /// The most rules read in one page, whatever the index asks for: one question to the engine is
 /// asked for each, so a page is as slow as that many questions.
@@ -64,12 +67,25 @@ pub struct BodiesEngine {
     inner: Arc<dyn Engine>,
     /// `None`: every question is cheap (no host to wait for), the texts are read.
     host: Option<Arc<dyn HostProbe>>,
+    /// The snapshot the hub holds, for the first try of a page; `None`: every try asks the engine.
+    store: Option<Arc<SnapshotStore>>,
 }
 
 impl BodiesEngine {
     #[must_use]
     pub fn new(inner: Arc<dyn Engine>) -> Self {
-        Self { inner, host: None }
+        Self {
+            inner,
+            host: None,
+            store: None,
+        }
+    }
+
+    /// Read a page first from the snapshot `store` holds; `rev` still decides whether the page is of one state.
+    #[must_use]
+    pub fn with_store(mut self, store: Arc<SnapshotStore>) -> Self {
+        self.store = Some(store);
+        self
     }
 
     /// Read the texts only while the host `probe` tells of runs.
@@ -173,10 +189,18 @@ impl BodiesEngine {
                 return Err(no_host());
             }
         }
-        for _ in 0..PAGE_TRIES {
-            let reply = self.inner.call(Calls::Snapshot, None).await?;
+        for attempt in 0..PAGE_TRIES {
+            let held = if attempt == 0 {
+                self.store.as_ref().and_then(|store| store.latest())
+            } else {
+                None
+            };
+            let text = match held {
+                Some(cached) => cached.text.clone(),
+                None => self.inner.call(Calls::Snapshot, None).await?.text.into(),
+            };
             // Without its `rev` no page could be told to be of one state.
-            let snapshot: Snapshot = serde_json::from_str(&reply.text)
+            let snapshot: Snapshot = serde_json::from_slice(&text)
                 .map_err(|e| protocol(format!("a snapshot without its rules or its rev: {e}")))?;
             if let Some(page) = self.read_page(request, snapshot).await? {
                 return Ok(page);
@@ -487,6 +511,33 @@ pub(crate) mod tests {
         let reply = e.call(Calls::Snapshot, None).await.unwrap();
         assert!(reply.text.contains("rev:1"));
         assert_eq!(fake.asked(), ["snapshot"]);
+    }
+
+    fn store_of(fake: &Arc<Fake>) -> Arc<SnapshotStore> {
+        SnapshotStore::new(
+            Some(fake.clone() as Arc<dyn Engine>),
+            crate::store::SHAPE,
+            crate::store::StoreOptions::default(),
+        )
+    }
+
+    #[tokio::test]
+    async fn a_page_takes_the_ids_of_the_snapshot_the_store_holds() {
+        let fake = three();
+        let store = store_of(&fake);
+        store.current().await.unwrap();
+        let scans = |fake: &Fake| fake.asked().iter().filter(|m| *m == "snapshot").count();
+        assert_eq!(scans(&fake), 1);
+        let e = hosted(&fake).with_store(store);
+        let doc = page(&e, json!({ "offset": 0, "limit": 10 })).await.unwrap();
+        assert_eq!(doc["items"].as_array().unwrap().len(), 3);
+        assert_eq!(scans(&fake), 1, "{:?}", fake.asked());
+
+        // The held snapshot is older than the rules: the page is read again from a fresh one.
+        *fake.move_after.lock().unwrap() = Some(1);
+        let doc = page(&e, json!({ "offset": 0, "limit": 10 })).await.unwrap();
+        assert_eq!(doc["rev"], "rev:2");
+        assert_eq!(scans(&fake), 2, "{:?}", fake.asked());
     }
 
     #[tokio::test]

@@ -230,7 +230,7 @@ impl RulesRuntime {
         );
         // The text of the rules, for the search: asked of the engine rule by rule, while its host runs.
         let indexing = engine.clone().map(|engine| {
-            let bodies = BodiesEngine::new(engine);
+            let bodies = BodiesEngine::new(engine).with_store(Arc::clone(&store));
             let bodies = Arc::new(match host {
                 Some(probe) => bodies.with_host(probe),
                 None => bodies,
