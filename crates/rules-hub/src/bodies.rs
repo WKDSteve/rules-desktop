@@ -195,6 +195,7 @@ impl BodiesEngine {
             } else {
                 None
             };
+            let was_held = held.is_some();
             let text = match held {
                 Some(cached) => cached.text.clone(),
                 None => self.inner.call(Calls::Snapshot, None).await?.text.into(),
@@ -203,6 +204,12 @@ impl BodiesEngine {
             let snapshot: Snapshot = serde_json::from_slice(&text)
                 .map_err(|e| protocol(format!("a snapshot without its rules or its rev: {e}")))?;
             if let Some(page) = self.read_page(request, snapshot).await? {
+                // A page without a rule asked no question that could have seen a newer state: the held snapshot may
+                // lag behind, so nothing is the answer only from a fresh one.
+                let empty = page.1["items"].as_array().is_some_and(Vec::is_empty);
+                if was_held && empty {
+                    continue;
+                }
                 return Ok(page);
             }
         }
@@ -537,6 +544,22 @@ pub(crate) mod tests {
         *fake.move_after.lock().unwrap() = Some(1);
         let doc = page(&e, json!({ "offset": 0, "limit": 10 })).await.unwrap();
         assert_eq!(doc["rev"], "rev:2");
+        assert_eq!(scans(&fake), 2, "{:?}", fake.asked());
+    }
+
+    #[tokio::test]
+    async fn a_page_with_no_rule_is_not_taken_from_the_held_snapshot_alone() {
+        let fake = three();
+        let store = store_of(&fake);
+        store.current().await.unwrap();
+        let e = hosted(&fake).with_store(store);
+        let scans = |fake: &Fake| fake.asked().iter().filter(|m| *m == "snapshot").count();
+        assert_eq!(scans(&fake), 1);
+        // Past the end: no question could have seen that the held snapshot lags behind.
+        let doc = page(&e, json!({ "offset": 99, "limit": 10 }))
+            .await
+            .unwrap();
+        assert!(doc["items"].as_array().unwrap().is_empty());
         assert_eq!(scans(&fake), 2, "{:?}", fake.asked());
     }
 
