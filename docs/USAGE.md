@@ -33,7 +33,7 @@ trades it for a session and keeps the session in that tab only. A second tab nee
 (`RULES_DESKTOP_PORT`, `--port`, or `port` in `config.json`); when it is taken the hub says so and uses a free one.
 
 `rules-hub install [--autostart] [--shortcut]` copies the program to a fixed place; `autostart on|off|status` starts the
-hub with your login; `uninstall [--purge-settings]` takes all of that away again (`scripts/uninstall.ps1` or
+hub with your login, and the Help menu of the page has the same switch; nothing registers it by itself; `uninstall [--purge-settings]` takes all of that away again (`scripts/uninstall.ps1` or
 `scripts/uninstall.sh` then removes the program file).
 
 ## Which rule sets may be shown as what: `sources.json`

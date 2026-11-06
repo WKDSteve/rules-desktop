@@ -13,7 +13,7 @@ irm https://github.com/WKDSteve/rules-desktop/releases/download/{tag}/install.ps
 .\install.ps1
 ```
 
-To register the hub with your login and add a link, pass the arguments: `.\install.ps1 -InstallArgs '--autostart','--shortcut'`.
+To add a link, pass the argument: `.\install.ps1 -InstallArgs '--shortcut'`. The Help menu of the page registers the hub with your login, if you want that.
 The program downloaded by the script is not stopped by SmartScreen; what is checked instead is that it is the file
 `SHA256SUMS` of this release lists.
 

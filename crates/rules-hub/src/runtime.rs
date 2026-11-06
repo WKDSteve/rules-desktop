@@ -41,6 +41,8 @@ pub struct RulesRuntime {
     pub(crate) streams: Arc<StreamCounter>,
     /// Shows a rule file in an editor; none in a hub that cannot.
     pub(crate) editor: Option<Editor>,
+    /// The entry that starts the hub at login; none in a hub without one.
+    pub(crate) login: Option<Arc<dyn crate::loginentry::LoginEntry>>,
     /// The project of the waivers (`config.json`), put into every waiver operation by the hub.
     pub(crate) project: Option<PathBuf>,
     /// The indexer and the refresher; they end with the runtime.
@@ -207,6 +209,7 @@ impl RulesRuntime {
         self
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         engine: Option<Arc<dyn Engine>>,
         host: Option<Arc<dyn HostProbe>>,
@@ -215,6 +218,7 @@ impl RulesRuntime {
         max_age: Option<Duration>,
         watch: Option<Watch>,
         editor: Option<Editor>,
+        login: Option<Arc<dyn crate::loginentry::LoginEntry>>,
     ) -> Self {
         let store = SnapshotStore::new(
             engine.clone(),
@@ -267,6 +271,7 @@ impl RulesRuntime {
             search,
             streams: Arc::default(),
             editor,
+            login,
             project: None,
             jobs: Mutex::new(jobs),
             _hints: hints,
@@ -360,7 +365,7 @@ mod tests {
             problem: None,
             capabilities: Vec::new(),
         };
-        RulesRuntime::new(None, None, status, Arc::new(policy), None, None, None)
+        RulesRuntime::new(None, None, status, Arc::new(policy), None, None, None, None)
     }
 
     #[test]

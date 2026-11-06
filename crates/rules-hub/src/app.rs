@@ -253,6 +253,7 @@ pub async fn serve(opts: ServeOptions) -> Result<(), String> {
                 locator: Arc::new(ProcessLocator::new(cfg)),
                 opener: Arc::new(TerminalOpener::new(nvim, env.clone())),
             }),
+        login: Some(Arc::new(crate::loginentry::SystemLoginEntry)),
         ui: ui.clone(),
         project: project.clone(),
         config_dir: Some(dir.clone()),

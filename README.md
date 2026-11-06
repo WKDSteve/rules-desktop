@@ -121,7 +121,7 @@ nothing), and hand over to `rules-hub install`, which replaces the program in on
 back. The installation that is there is found and replaced, never a second one beside it: the script of `latest` run
 again updates to the newest rolling build, the script of a release run again repairs that release (to update, take
 the script of the newer release, or pass `-Version`/`-Rolling`). To pass arguments, add them to the call:
-`& "$env:TEMP\install.ps1" -InstallArgs '--autostart','--shortcut'` registers the hub with your login and adds a link.
+`& "$env:TEMP\install.ps1" -InstallArgs '--shortcut'` adds a link. Nothing registers the hub with your login by itself: the Help menu of the page has a switch, as has `rules-hub autostart on|off`.
 `-File FILE` installs from a file you already have, with `-Sums FILE` or `-Sha256 HEX`. Through
 `powershell -File` an array arrives as one string, so a saved `install.ps1` takes one `-InstallArgs` value there; in a
 PowerShell session a list is fine. The install
@@ -134,7 +134,7 @@ the same steps as the rolling build, then `rules-hub install` of the program bui
 of the lock files, and a file built on the machine carries no mark for SmartScreen to stop.
 
 ```
-.\scripts\build-install.ps1 [-BuildOnly] [-InstallArgs '--autostart','--shortcut']
+.\scripts\build-install.ps1 [-BuildOnly] [-InstallArgs '--shortcut']
 ```
 
 ```

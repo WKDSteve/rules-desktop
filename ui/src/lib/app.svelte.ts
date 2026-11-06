@@ -199,6 +199,8 @@ export class App {
   searchHits = $state.raw<SearchHits | null>(null);
   paletteOpen = $state(false);
   notice = $state.raw<Notice | null>(null);
+  /** Whether the hub starts at login; null: nothing to switch here. */
+  autostart = $state<boolean | null>(null);
   /** Goes up by one each time the search box should take the focus (`/`). */
   searchFocus = $state(0);
   frecency = $state.raw<Frecency>({});
@@ -447,7 +449,28 @@ export class App {
     this.keepSelection();
   }
 
+  /** The switch of the menu: says what came of it, and shows what the system says afterwards. */
+  async toggleAutostart(): Promise<void> {
+    if (this.autostart === null) return;
+    const wanted = !this.autostart;
+    try {
+      this.autostart = await this.env.hub.setAutostart(wanted);
+      this.notice = { key: wanted ? 'notice.autostart_on' : 'notice.autostart_off' };
+    } catch {
+      this.notice = { key: 'notice.autostart_failed' };
+    }
+  }
+
+  private async readAutostart(): Promise<void> {
+    try {
+      this.autostart = await this.env.hub.autostart();
+    } catch {
+      this.autostart = null;
+    }
+  }
+
   private async readSources(): Promise<void> {
+    void this.readAutostart();
     try {
       this.sources = await this.env.hub.sources();
     } catch (error) {

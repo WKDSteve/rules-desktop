@@ -16,14 +16,14 @@ build (-BuildOnly), installing there is refused.
 Build target\release\rules-hub.exe and stop (no install).
 
 .PARAMETER InstallArgs
-More arguments for `rules-hub install` (--autostart, --shortcut).
+More arguments for `rules-hub install` (--shortcut; --autostart only if you want it, the Help menu has the same switch).
 
 .PARAMETER AllowElevated
 Install although the session is elevated (for a build machine).
 
 .EXAMPLE
 .\scripts\build-install.ps1
-.\scripts\build-install.ps1 -InstallArgs '--autostart','--shortcut'
+.\scripts\build-install.ps1 -InstallArgs '--shortcut'
 .\scripts\build-install.ps1 -BuildOnly
 #>
 [CmdletBinding()]

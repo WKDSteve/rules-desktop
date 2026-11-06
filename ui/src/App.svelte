@@ -121,6 +121,16 @@
           checked: app.shortcuts,
           onselect: () => app.setShortcuts(!app.shortcuts),
         },
+        ...(app.autostart === null
+          ? []
+          : [
+              {
+                kind: 'check' as const,
+                label: t('menu.autostart'),
+                checked: app.autostart,
+                onselect: () => void app.toggleAutostart(),
+              },
+            ]),
         { kind: 'info' as const, label: t('help.keys') },
         ...helpItems({
           text: kit,

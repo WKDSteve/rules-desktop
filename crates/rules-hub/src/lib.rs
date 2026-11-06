@@ -21,6 +21,7 @@ pub mod editor;
 pub mod engine;
 mod live;
 pub mod locate;
+pub mod loginentry;
 pub mod policy;
 mod routes;
 mod runtime;
@@ -119,6 +120,8 @@ pub struct Start {
     pub watch: Option<Watch>,
     /// How a rule file is opened in an editor; `None`: the `open` route says it cannot.
     pub editor: Option<Editor>,
+    /// The entry that starts the hub at login; `None`: the page offers no switch.
+    pub login: Option<Arc<dyn loginentry::LoginEntry>>,
     /// The project whose `.rules-waivers.json` the waivers are kept in (the person's word about this device);
     /// `None`: the waiver routes say there is none. The page never names a folder.
     pub project: Option<std::path::PathBuf>,
@@ -152,7 +155,7 @@ pub async fn start(s: Start) -> std::io::Result<RunningServer> {
             guard_rules: GuardRules::new(IDENTITY.route("hello"), [IDENTITY.route("ops")]),
             ui: Arc::new(s.ui),
             runtime: RulesRuntime::new(
-                s.engine, s.host, s.status, s.sources, max_age, s.watch, s.editor,
+                s.engine, s.host, s.status, s.sources, max_age, s.watch, s.editor, s.login,
             )
             .with_project(s.project)
             .with_config_dir(s.config_dir),
@@ -168,6 +171,7 @@ pub async fn start(s: Start) -> std::io::Result<RunningServer> {
                     },
                     Arc::default(),
                     max_age,
+                    None,
                     None,
                     None,
                 )

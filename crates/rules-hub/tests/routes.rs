@@ -200,6 +200,43 @@ async fn start_all(
     project: Option<std::path::PathBuf>,
     config_dir: Option<std::path::PathBuf>,
 ) -> Hub {
+    start_login(
+        engine, limits, sources, watch, editor, project, config_dir, None,
+    )
+    .await
+}
+
+/// A login entry that holds its value (no test touches the registry of the machine).
+struct FakeLogin {
+    on: Mutex<Option<bool>>,
+    refuse: bool,
+}
+
+impl rules_hub::loginentry::LoginEntry for FakeLogin {
+    fn is_on(&self) -> Option<bool> {
+        *self.on.lock().unwrap()
+    }
+
+    fn set(&self, on: bool) -> Result<(), String> {
+        if self.refuse {
+            return Err("the system said no".to_owned());
+        }
+        *self.on.lock().unwrap() = Some(on);
+        Ok(())
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn start_login(
+    engine: Option<Arc<FakeEngine>>,
+    limits: Limits,
+    sources: Arc<SourcePolicy>,
+    watch: Option<Watch>,
+    editor: Option<rules_hub::Editor>,
+    project: Option<std::path::PathBuf>,
+    config_dir: Option<std::path::PathBuf>,
+    login: Option<Arc<dyn rules_hub::loginentry::LoginEntry>>,
+) -> Hub {
     let control = Secret::generate(TOKEN_BYTES).unwrap();
     let server = rules_hub::start(rules_hub::Start {
         addr: "127.0.0.1:0".parse().unwrap(),
@@ -222,6 +259,7 @@ async fn start_all(
         sources,
         watch,
         editor,
+        login: login.clone(),
         ui: rules_hub::ui::UiFiles::none(),
         project,
         config_dir,
@@ -249,6 +287,63 @@ impl Hub {
     async fn get(&self, path: &str) -> appkit_testkit::wire::Reply {
         get(&self.server, path, Some(&self.token)).await
     }
+
+    async fn post(&self, path: &str, body: &str) -> appkit_testkit::wire::Reply {
+        post(&self.server, path, Some(&self.token), body).await
+    }
+}
+
+#[tokio::test]
+async fn the_login_entry_is_read_set_and_taken_away_and_only_with_a_session() {
+    let start_it = |login: Arc<dyn rules_hub::loginentry::LoginEntry>| {
+        start_login(
+            None,
+            Limits::default(),
+            Arc::default(),
+            None,
+            None,
+            None,
+            None,
+            Some(login),
+        )
+    };
+    let login = Arc::new(FakeLogin {
+        on: Mutex::new(Some(false)),
+        refuse: false,
+    });
+    let hub = start_it(login.clone()).await;
+    let at = route("autostart");
+    assert!(hub.get(&at).await.body.contains("false"));
+    let on = hub.post(&at, r#"{"on":true}"#).await;
+    assert_eq!(on.status, 200, "{on:?}");
+    assert_eq!(*login.on.lock().unwrap(), Some(true));
+    assert!(hub.get(&at).await.body.contains("true"));
+    for bad in [
+        "{}",
+        r#"{"on":"yes"}"#,
+        r#"{"on":true,"exe":"x"}"#,
+        "nonsense",
+    ] {
+        assert_eq!(hub.post(&at, bad).await.status, 400, "{bad}");
+    }
+    assert_eq!(get(&hub.server, &at, None).await.status, 401);
+    assert_eq!(
+        *login.on.lock().unwrap(),
+        Some(true),
+        "a refused request changed nothing"
+    );
+
+    let refusing = Arc::new(FakeLogin {
+        on: Mutex::new(Some(false)),
+        refuse: true,
+    });
+    let told = start_it(refusing).await.post(&at, r#"{"on":true}"#).await;
+    assert_eq!(told.status, 502, "{told:?}");
+    assert!(told.body.contains("autostart_failed"));
+
+    let none = start_with(None, None).await;
+    assert!(none.get(&at).await.body.contains("null"));
+    assert_eq!(none.post(&at, r#"{"on":true}"#).await.status, 404);
 }
 
 #[tokio::test]
@@ -262,7 +357,7 @@ async fn every_route_of_the_table_is_served_to_a_session_and_to_nobody_else() {
         // The stream does not end and the rescan is a POST: both are tried on their own below.
         if matches!(
             *name,
-            "events" | "rescan" | "open" | "ops" | "sources/class"
+            "events" | "rescan" | "open" | "ops" | "sources/class" | "autostart"
         ) {
             continue;
         }
@@ -998,6 +1093,7 @@ async fn the_page_of_a_folder_is_served_to_everybody_and_nothing_else_of_it() {
         sources: Arc::default(),
         watch: None,
         editor: None,
+        login: None,
         ui: rules_hub::ui::UiFiles::load(&dir).unwrap(),
         project: None,
         config_dir: None,

@@ -49,6 +49,26 @@ test.afterEach(async ({ page }) => {
   await noProblems(page);
 });
 
+test('the menu switches the start at login, and no test touches the registry', async ({ page }) => {
+  let on = false;
+  const posted: unknown[] = [];
+  await page.route('**/api/rules/autostart', async (route) => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() as { on: boolean };
+      posted.push(body);
+      on = body.on;
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ on }) });
+  });
+  await pair(page);
+  await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
+  const entry = page.getByRole('menuitemcheckbox', { name: 'Start the hub at login' });
+  await expect(entry).toHaveAttribute('aria-checked', 'false');
+  await entry.click();
+  await expect.poll(() => posted).toEqual([{ on: true }]);
+  await expect(page.getByText('The hub now starts at login.')).toBeVisible();
+});
+
 test('the link pairs the tab, leaves no code in the address and sets no cookie', async ({ page, context }) => {
   await prepare(page);
   await page.goto(pairingLink(state().config));

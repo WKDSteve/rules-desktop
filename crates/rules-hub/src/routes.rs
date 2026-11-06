@@ -41,6 +41,7 @@ pub const ROUTES: &[(&str, MakeRoute)] = &[
     ("search", || get(live::search)),
     ("rescan", || post(live::rescan)),
     ("open", || post(open)),
+    ("autostart", || get(autostart_get).post(autostart_set)),
     ("next_id", || get(crate::write::next_id)),
     ("ops", || post(crate::write::ops)),
     ("waivers", || get(crate::write::waivers)),
@@ -177,6 +178,62 @@ async fn rule(State(st): State<Arc<Shared>>, RawQuery(query): RawQuery) -> Respo
 /// file is not named by the client and not worked out from the `source` of the rule (a name, not a place): the
 /// engine says where it is and which loaded rule set holds it, and the file must be a plain file inside that rule
 /// set once links are resolved. Only an id of the held snapshot is asked for.
+/// `GET /api/rules/autostart`: whether the hub starts at login (`{ "on": true | false }`); `{ "on": null }` where this
+/// system cannot tell or this hub has no such entry: the page then offers no switch.
+async fn autostart_get(State(st): State<Arc<Shared>>) -> Response {
+    let Some(login) = st.rt().login.clone() else {
+        return axum::Json(serde_json::json!({ "on": null })).into_response();
+    };
+    match tokio::task::spawn_blocking(move || login.is_on()).await {
+        Ok(on) => axum::Json(serde_json::json!({ "on": on })).into_response(),
+        Err(_) => axum::Json(serde_json::json!({ "on": null })).into_response(),
+    }
+}
+
+/// `POST /api/rules/autostart` `{ "on": bool }`: register the hub at login, or take it away. The answer is what the system
+/// says afterwards, not what was asked.
+async fn autostart_set(State(st): State<Arc<Shared>>, body: axum::body::Bytes) -> Response {
+    let on = match serde_json::from_slice::<serde_json::Value>(&body) {
+        Ok(doc) => match (
+            doc.as_object().map(serde_json::Map::len),
+            doc["on"].as_bool(),
+        ) {
+            (Some(1), Some(on)) => on,
+            _ => {
+                return error_body(
+                    StatusCode::BAD_REQUEST,
+                    "bad_request",
+                    "the body is { \"on\": true | false }",
+                )
+            }
+        },
+        Err(_) => {
+            return error_body(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "the body is not JSON",
+            )
+        }
+    };
+    let Some(login) = st.rt().login.clone() else {
+        return error_body(
+            StatusCode::NOT_FOUND,
+            "autostart_unavailable",
+            "this hub has no login entry",
+        );
+    };
+    let done = tokio::task::spawn_blocking(move || login.set(on).map(|()| login.is_on())).await;
+    match done {
+        Ok(Ok(now)) => axum::Json(serde_json::json!({ "on": now })).into_response(),
+        Ok(Err(why)) => error_body(StatusCode::BAD_GATEWAY, "autostart_failed", &why),
+        Err(_) => error_body(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "autostart_failed",
+            "the change stopped unexpectedly",
+        ),
+    }
+}
+
 async fn open(State(st): State<Arc<Shared>>, body: axum::body::Bytes) -> Response {
     let rt = st.rt();
     let Some(editor) = &rt.editor else {
@@ -369,6 +426,7 @@ mod tests {
                 "search",
                 "rescan",
                 "open",
+                "autostart",
                 "next_id",
                 "ops",
                 "waivers",

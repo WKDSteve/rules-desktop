@@ -99,6 +99,22 @@ export class Hub extends HubClient<Snapshot> {
     return this.post(`${API}/open`, { id });
   }
 
+  /** Whether the hub starts at login; null where there is nothing to switch. */
+  async autostart(): Promise<boolean | null> {
+    try {
+      const doc = await this.json<{ on: boolean | null }>(`${API}/autostart`);
+      return typeof doc.on === 'boolean' ? doc.on : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Register the hub at login or take it away; what is true afterwards. */
+  async setAutostart(on: boolean): Promise<boolean | null> {
+    const doc = await this.postJson<{ on: boolean | null }>(`${API}/autostart`, { on });
+    return typeof doc.on === 'boolean' ? doc.on : null;
+  }
+
   /**
    * Ask the engine to change rules (`rules-ops/1`) through the hub. A refusal of the whole request is an
    * `ApiError` (`write_refused` for a rule set without a class, `bad_request`, `rate_limited` ...); a part that
