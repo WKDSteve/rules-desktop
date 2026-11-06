@@ -454,14 +454,19 @@ export class App {
     if (this.autostart === null) return;
     const wanted = !this.autostart;
     try {
-      this.autostart = await this.env.hub.setAutostart(wanted);
-      this.notice = { key: wanted ? 'notice.autostart_on' : 'notice.autostart_off' };
+      const now = await this.env.hub.setAutostart(wanted);
+      this.autostart = now;
+      this.notice = { key: now !== wanted ? 'notice.autostart_failed' : wanted ? 'notice.autostart_on' : 'notice.autostart_off' };
     } catch {
       this.notice = { key: 'notice.autostart_failed' };
     }
   }
 
+  /** Once per page: each read starts a program on the machine of the hub, and the entry changes only through the switch. */
+  #autostartRead = false;
   private async readAutostart(): Promise<void> {
+    if (this.#autostartRead) return;
+    this.#autostartRead = true;
     try {
       this.autostart = await this.env.hub.autostart();
     } catch {

@@ -44,6 +44,24 @@ pub fn autostart(what: Autostart) -> Result<String, String> {
     appkit_hub::background::autostart(&APP, what)
 }
 
+/// [`autostart`] for the program at `exe`.
+///
+/// # Errors
+///
+/// A text for the person at the terminal.
+pub fn autostart_for(what: Autostart, exe: &std::path::Path) -> Result<String, String> {
+    appkit_hub::background::autostart_for(&APP, what, exe)
+}
+
+/// Where `install` puts this program.
+///
+/// # Errors
+///
+/// The reason there is no install folder.
+pub fn installed_program(env: &appkit_hub::config::Env) -> Result<std::path::PathBuf, String> {
+    appkit_hub::background::installed_program(&APP, env)
+}
+
 /// Copy this program to a fixed place and start the hub from there again when one was running.
 ///
 /// # Errors

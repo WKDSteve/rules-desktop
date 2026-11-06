@@ -174,10 +174,6 @@ async fn rule(State(st): State<Arc<Shared>>, RawQuery(query): RawQuery) -> Respo
     }
 }
 
-/// `POST /api/rules/open` with `{"id": "<rule id>"}`: show the file of the rule in Neovim, at its line. The
-/// file is not named by the client and not worked out from the `source` of the rule (a name, not a place): the
-/// engine says where it is and which loaded rule set holds it, and the file must be a plain file inside that rule
-/// set once links are resolved. Only an id of the held snapshot is asked for.
 /// `GET /api/rules/autostart`: whether the hub starts at login (`{ "on": true | false }`); `{ "on": null }` where this
 /// system cannot tell or this hub has no such entry: the page then offers no switch.
 async fn autostart_get(State(st): State<Arc<Shared>>) -> Response {
@@ -234,6 +230,10 @@ async fn autostart_set(State(st): State<Arc<Shared>>, body: axum::body::Bytes) -
     }
 }
 
+/// `POST /api/rules/open` with `{"id": "<rule id>"}`: show the file of the rule in Neovim, at its line. The
+/// file is not named by the client and not worked out from the `source` of the rule (a name, not a place): the
+/// engine says where it is and which loaded rule set holds it, and the file must be a plain file inside that rule
+/// set once links are resolved. Only an id of the held snapshot is asked for.
 async fn open(State(st): State<Arc<Shared>>, body: axum::body::Bytes) -> Response {
     let rt = st.rt();
     let Some(editor) = &rt.editor else {

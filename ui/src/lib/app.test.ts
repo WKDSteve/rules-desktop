@@ -1115,3 +1115,31 @@ describe('the list of rule sets follows the snapshot', () => {
     expect(s.app.rulesets).not.toBeNull();
   });
 });
+
+describe('the start at login', () => {
+  it('is read once for the page, and the notice says what the system answered', async () => {
+    const s = setup();
+    const hub = s.env.hub;
+    let reads = 0;
+    hub.autostart = async () => {
+      reads += 1;
+      return false;
+    };
+    hub.setAutostart = async () => true;
+    await s.app.start(null);
+    await vi.waitFor(() => expect(s.app.autostart).toBe(false));
+    // A fresh snapshot reads the sources again; that is no reason to run reg.exe again.
+    await (s.app as unknown as { readSources(): Promise<void> }).readSources();
+    expect(reads).toBe(1);
+
+    await s.app.toggleAutostart();
+    expect(s.app.autostart).toBe(true);
+    expect(s.app.notice?.key).toBe('notice.autostart_on');
+
+    // Written, but the system does not say so: no word of success, and no switch either.
+    hub.setAutostart = async () => null;
+    await s.app.toggleAutostart();
+    expect(s.app.autostart).toBeNull();
+    expect(s.app.notice?.key).toBe('notice.autostart_failed');
+  });
+});
