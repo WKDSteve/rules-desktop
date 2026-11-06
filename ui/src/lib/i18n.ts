@@ -93,6 +93,9 @@ const en = {
   'palette.new': 'New rule …',
   'new.open': 'New rule …',
   'new.label': 'New rule',
+  'float.move': 'Move or resize the window',
+  'hint.float.move':
+    'Drag to move the window, drag its lower right corner to resize it. On the button: the arrow keys move it, Shift with the arrow keys changes its size, Home or a double click puts it back.',
   'new.family': 'Family (letters, e.g. DEP)',
   'new.next': 'Next id: {id}',
   'new.next_none': 'The engine names no id yet for this family.',
@@ -353,6 +356,9 @@ const de: Record<Key, string> = {
   'palette.new': 'Neue Regel …',
   'new.open': 'Neue Regel …',
   'new.label': 'Neue Regel',
+  'float.move': 'Fenster verschieben oder Größe ändern',
+  'hint.float.move':
+    'Ziehen verschiebt das Fenster, die untere rechte Ecke ändert seine Größe. Auf dem Knopf: Die Pfeiltasten verschieben es, Umschalt mit den Pfeiltasten ändert die Größe, Pos1 oder ein Doppelklick setzt es zurück.',
   'new.family': 'Familie (Buchstaben, z. B. DEP)',
   'new.next': 'Nächste ID: {id}',
   'new.next_none': 'Die Engine nennt für diese Familie noch keine ID.',

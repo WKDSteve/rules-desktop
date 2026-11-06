@@ -6,6 +6,7 @@
   // is the engine's to say: its refusal is shown as it comes.
   import type { App } from '../lib/app.svelte';
   import { dataPatch } from '../lib/edit';
+  import { floating } from '../lib/floating';
   import { translate, type Key } from '../lib/i18n';
   import { newOp, type Outcome } from '../lib/write';
 
@@ -119,6 +120,7 @@
 
 <dialog
   bind:this={dialog}
+  use:floating={{ kind: 'new-rule', moveLabel: t('float.move'), moveHint: t('hint.float.move') }}
   use:closeOnBackdrop={{ closeable: () => [title, text, check].every((v) => v.trim() === '') }}
   aria-label={t('new.label')}
   oncancel={() => app.closeNewRule()}

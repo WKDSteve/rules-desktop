@@ -271,6 +271,16 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'New rule …' }).click();
     await expect(page.getByRole('dialog', { name: 'New rule' })).toBeVisible();
     await expectAccessible(page, `new rule ${scheme}`);
+    // The kit's float: the keys on its handle move it, and Home puts it back.
+    const newRule = page.getByRole('dialog', { name: 'New rule' });
+    const before = await newRule.boundingBox();
+    await newRule.getByRole('button', { name: 'Move or resize the window' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => (await newRule.boundingBox())?.x).toBeGreaterThan(before?.x ?? 0);
+    await page.keyboard.press('Home');
+    await expect.poll(async () => (await newRule.boundingBox())?.x).toBe(before?.x);
+    // The first Escape is for the hint the focus opened on the handle, the second one for the dialog.
+    await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'New rule' })).toHaveCount(0);
     // Several rules marked: the bar for the marked.
