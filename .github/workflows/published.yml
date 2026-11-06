@@ -70,5 +70,5 @@ jobs:
             if (-not $server.HasExited) { Stop-Process -Id $server.Id -Force }
           }
           Invoke-WebRequest -UseBasicParsing -Uri "$env:BASE/uninstall.ps1" -OutFile (Join-Path $env:RUNNER_TEMP 'uninstall.ps1')
-          & (Join-Path $env:RUNNER_TEMP 'uninstall.ps1')
+          & (Join-Path $env:RUNNER_TEMP 'uninstall.ps1') -AllowElevated
           if (Test-Path $hub) { throw "the uninstall left $hub" }
