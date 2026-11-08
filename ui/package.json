@@ -21,11 +21,7 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-<<<<<<< Updated upstream
     "appkit-ui": "github:WKDSteve/appkit#v0.38.0&path:ui-kit",
-=======
-    "appkit-ui": "github:WKDSteve/appkit#v0.39.0&path:ui-kit",
->>>>>>> Stashed changes
     "markdown-it": "^15.0.3"
   }
 }

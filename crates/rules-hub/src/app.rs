@@ -15,6 +15,7 @@ use appkit_hub::env::Env;
 use appkit_hub::{HubStatus, Limits};
 use serde_json::Value;
 
+use crate::editor::TerminalOpener;
 use crate::engine::{cli_config, probe, CliEngine, Engine, DISCOVERY};
 use crate::locate::ProcessLocator;
 use crate::sources::SourcePolicy;
@@ -250,7 +251,7 @@ pub async fn serve(opts: ServeOptions) -> Result<(), String> {
             .zip(state.nvim.clone())
             .map(|(cfg, nvim)| Editor {
                 locator: Arc::new(ProcessLocator::new(cfg)),
-                opener: Arc::new(crate::editor::terminal_opener(nvim, env.clone())),
+                opener: Arc::new(TerminalOpener::new(nvim, env.clone())),
             }),
         login: Some(Arc::new(crate::loginentry::SystemLoginEntry)),
         ui: ui.clone(),

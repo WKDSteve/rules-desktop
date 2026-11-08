@@ -9,13 +9,8 @@ importers:
   .:
     dependencies:
       appkit-ui:
-<<<<<<< Updated upstream
         specifier: github:WKDSteve/appkit#v0.38.0&path:ui-kit
         version: https://codeload.github.com/WKDSteve/appkit/tar.gz/f4747fa201e3b9b9443b745732d6c74e457aaf29#path:ui-kit(svelte@5.57.2)
-=======
-        specifier: github:WKDSteve/appkit#v0.39.0&path:ui-kit
-        version: https://codeload.github.com/WKDSteve/appkit/tar.gz/5ebb3d7c583c81414cfbb2cff2b53e8e3f17e5d7#path:ui-kit(svelte@5.57.2)
->>>>>>> Stashed changes
       markdown-it:
         specifier: ^15.0.3
         version: 15.0.3
@@ -219,13 +214,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-<<<<<<< Updated upstream
   appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/f4747fa201e3b9b9443b745732d6c74e457aaf29#path:ui-kit:
     resolution: {path: ui-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/f4747fa201e3b9b9443b745732d6c74e457aaf29}
-=======
-  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/5ebb3d7c583c81414cfbb2cff2b53e8e3f17e5d7#path:ui-kit:
-    resolution: {gitHosted: true, integrity: sha512-hOa2s+/dIUFm+i1dtHqWf734UnB0+HNKeeiNWkJB0vpMYwepD/TLbkhPra8wul0Py9VCCA6u/fEjPWdDC1uQeQ==, path: ui-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/5ebb3d7c583c81414cfbb2cff2b53e8e3f17e5d7}
->>>>>>> Stashed changes
     version: 0.0.0
     peerDependencies:
       svelte: ^5.0.0
@@ -713,11 +703,7 @@ snapshots:
 
   acorn@8.19.0: {}
 
-<<<<<<< Updated upstream
   appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/f4747fa201e3b9b9443b745732d6c74e457aaf29#path:ui-kit(svelte@5.57.2):
-=======
-  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/5ebb3d7c583c81414cfbb2cff2b53e8e3f17e5d7#path:ui-kit(svelte@5.57.2):
->>>>>>> Stashed changes
     dependencies:
       markdown-it: 15.0.3
       svelte: 5.57.2
