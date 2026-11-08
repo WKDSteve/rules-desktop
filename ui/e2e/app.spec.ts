@@ -165,6 +165,43 @@ test('the search reads the texts of the rules', async ({ page }) => {
   await expect(page.getByText(/1 of \d+/)).toBeVisible();
 });
 
+test('the search is emptied in one click on its named button, or with Escape in the field', async ({ page }) => {
+  await watchViolations(page);
+  await pair(page);
+  await view(page, 'Rules');
+  const box = page.getByRole('searchbox');
+  const clear = page.getByRole('button', { name: 'Clear the search', exact: true });
+  // An empty field has no button.
+  await expect(clear).toHaveCount(0);
+  await box.fill('never dropped');
+  await expect(clear).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+  const top = await page.evaluate(() => window.scrollY);
+  await clear.click();
+  await expect(box).toHaveValue('');
+  await expect(box).toBeFocused();
+  await expect(clear).toHaveCount(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(top);
+
+  // Escape: a synthetic key press, which the browser itself does nothing with, so only the page's handler can empty the
+  // field (Chrome empties a search field on a real Escape by itself).
+  await box.fill('never dropped');
+  const prevented = await box.evaluate((el) => {
+    const press = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    el.dispatchEvent(press);
+    return press.defaultPrevented;
+  });
+  expect(prevented).toBe(true);
+  await expect(box).toHaveValue('');
+  // The button is reached with Tab and works with Enter.
+  await box.fill('gl');
+  await box.press('Tab');
+  await expect(clear).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(box).toHaveValue('');
+  await expect(box).toBeFocused();
+});
+
 test('a rule is shown as text, with its file and its check as data', async ({ page }) => {
   await pair(page);
   await view(page, 'Rules');

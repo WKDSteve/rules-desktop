@@ -2,6 +2,7 @@
   // The rule list: filters (family, severity, kind of check), a search over titles and texts, and the rows. j and k
   // move the cursor, Enter or a click opens the rule. The class of a rule is the hub's word for its file.
   import MultiSelect from 'appkit-ui/MultiSelect.svelte';
+  import { TIP_ID } from 'appkit-ui/tooltip';
   import type { App } from '../lib/app.svelte';
   import { checkKindOf, checkKindsOf, familiesOf, isActive, NO_CHECK, SEVERITIES } from '../lib/filter';
   import { labelOf, translate, type Key } from '../lib/i18n';
@@ -12,6 +13,20 @@
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
 
   let search: HTMLInputElement | undefined = $state();
+  // The words go, the focus stays in the field (the button it was on is gone).
+  function clearQuery(): void {
+    void app.setQuery('');
+    search?.focus();
+  }
+  // Escape empties the words (Firefox would not); an empty field leaves Escape to the page. An open hint of the field
+  // takes this Escape alone (the kit closes it, on the document), and so does a composition.
+  function onSearchKey(e: KeyboardEvent & { currentTarget: HTMLInputElement }): void {
+    const hintOpen = (e.currentTarget.getAttribute('aria-describedby') ?? '').split(' ').includes(TIP_ID);
+    if (e.key === 'Escape' && !e.isComposing && !hintOpen && app.filter.query !== '') {
+      e.preventDefault();
+      clearQuery();
+    }
+  }
   // `/` takes the focus to the search box.
   $effect(() => {
     if (app.searchFocus > 0) search?.focus();
@@ -45,6 +60,7 @@
       options={familyOptions}
       selected={app.filter.families}
       onchange={(families) => app.setFilter({ ...app.filter, families })}
+      clearLabel={t('filter.clear_one', { label: t('filter.family') })}
       resetLabel={t('filter.reset_one')}
       searchLabel={t('filter.search_label')}
     />
@@ -53,6 +69,7 @@
       options={severityOptions}
       selected={app.filter.severities}
       onchange={(severities) => app.setFilter({ ...app.filter, severities })}
+      clearLabel={t('filter.clear_one', { label: t('filter.severity') })}
       resetLabel={t('filter.reset_one')}
       searchLabel={t('filter.search_label')}
     />
@@ -61,19 +78,33 @@
       options={checkOptions}
       selected={app.filter.checkKinds}
       onchange={(checkKinds) => app.setFilter({ ...app.filter, checkKinds })}
+      clearLabel={t('filter.clear_one', { label: t('filter.check') })}
       resetLabel={t('filter.reset_one')}
       searchLabel={t('filter.search_label')}
     />
-    <input
-      bind:this={search}
-      type="search"
-      aria-label={t('filter.search')}
-      placeholder={t('filter.search')}
-      value={app.filter.query}
-      oninput={(e) => void app.setQuery(e.currentTarget.value)}
-      autocomplete="off"
-      spellcheck="false"
-    />
+    <span class="search">
+      <input
+        bind:this={search}
+        type="search"
+        aria-label={t('filter.search')}
+        placeholder={t('filter.search')}
+        value={app.filter.query}
+        oninput={(e) => void app.setQuery(e.currentTarget.value)}
+        onkeydown={onSearchKey}
+        autocomplete="off"
+        spellcheck="false"
+      />
+      {#if app.filter.query !== ''}
+        <button
+          type="button"
+          class="search-clear"
+          aria-label={t('filter.search_clear')}
+          title={t('filter.search_clear')}
+          onmousedown={(e) => e.preventDefault()}
+          onclick={clearQuery}>×</button
+        >
+      {/if}
+    </span>
     {#if isActive(app.filter)}
       <button type="button" onclick={() => app.resetFilter()}>{t('filter.clear')}</button>
     {/if}
@@ -158,13 +189,41 @@
     align-items: center;
     margin-bottom: 0.5rem;
   }
-  input[type='search'] {
+  .search {
+    position: relative;
+    display: flex;
     flex: 1 1 14rem;
     min-width: 10rem;
+  }
+  input[type='search'] {
+    flex: 1;
+    min-width: 0;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 0.35rem 0.6rem;
+    padding: 0.35rem 1.9rem 0.35rem 0.6rem;
+  }
+  /* Our own button clears, with a name; the browser's unnamed one would stand beside it. */
+  input[type='search']::-webkit-search-cancel-button {
+    appearance: none;
+  }
+  .search-clear {
+    position: absolute;
+    right: 0.2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    padding: 0 0.3rem;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .search-clear:hover,
+  .search-clear:focus-visible {
+    color: var(--text);
   }
   .new,
   .bar > button {
