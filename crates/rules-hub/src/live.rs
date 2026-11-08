@@ -1,37 +1,21 @@
 //! The routes that follow the vault: the event stream, the search and the request for a rescan.
 
-use std::convert::Infallible;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use appkit_hub::search::{self, Query, Status};
+use appkit_hub::streams::{sse_response, too_many_streams};
 use appkit_hub::{bearer, error_body, json_response, no_query};
-use axum::body::{Body, Bytes};
+use axum::body::Bytes;
 use axum::extract::{RawQuery, State};
-use axum::http::header::{self, HeaderMap, HeaderValue};
+use axum::http::header::HeaderMap;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use futures_core::Stream;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::answer::{engine_failure, engine_unavailable};
 use crate::routes::Shared;
 use crate::store::SHAPE;
-
-/// The body of an event stream: what the task of the connection sends.
-struct EventStream {
-    rx: mpsc::Receiver<Bytes>,
-}
-
-impl Stream for EventStream {
-    type Item = Result<Bytes, Infallible>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.rx.poll_recv(cx).map(|item| item.map(Ok))
-    }
-}
 
 /// `GET /api/rules/events`: server-sent events. A `hello` first (with where the stream stands),
 /// then one `rules` event per change. An event is a hint: what changed, as ids; the client reads
@@ -55,11 +39,7 @@ pub(crate) async fn events(
         .streams
         .acquire(&token, st.limits.max_streams_per_session)
     else {
-        return error_body(
-            StatusCode::TOO_MANY_REQUESTS,
-            "too_many_streams",
-            "this session has too many open event streams",
-        );
+        return too_many_streams();
     };
     // Start from a known state: the snapshot is held before the stream is.
     if let Err(error) = rt.store.current().await {
@@ -108,12 +88,7 @@ pub(crate) async fn events(
             }
         }
     });
-    let mut response = Response::new(Body::from_stream(EventStream { rx }));
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("text/event-stream; charset=utf-8"),
-    );
-    response
+    sse_response(rx)
 }
 
 /// `GET /api/rules/search?q=<escaped text>&limit=<1..50>`: the rules whose title or text holds the
