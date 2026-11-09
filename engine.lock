@@ -5,4 +5,4 @@
 repo       = https://github.com/WKDSteve/rules.nvim
 commit     = cdfbe8c5194e3690b856a6344cef404ca6b68c23
 lib_repo   = https://github.com/WKDSteve/lib.nvim
-lib_commit = 78c5cacb77694693c1311026ca8ae4b36bd3ae04
+lib_commit = 60b409131e3ae789b1b72ce07818cf3fb0c244e4
