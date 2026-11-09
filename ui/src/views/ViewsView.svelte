@@ -9,7 +9,9 @@
   import type { App } from '../lib/app.svelte';
   import { translate, type Key } from '../lib/i18n';
   import {
+    cellDropOp,
     defOf,
+    dropOp,
     EVERY,
     fieldOf,
     itemsOf,
@@ -22,8 +24,10 @@
     type Grouping,
     type Item,
     type SavedView,
+    type Refusal,
     type ViewDef,
   } from '../lib/views';
+  import { neighbourCell, neighbourGroup } from 'appkit-ui/groups';
 
   let { app }: { app: App } = $props();
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
@@ -114,20 +118,97 @@
     void app.write([viewSaveOp({ ...defOf(current), collapsed }, current.id, current.etag)], { undoable: false });
   }
 
+  // -- a drop writes the field --
+
+  const itemOf = (id: string) => items.find((i) => i.id === id);
+  /** Whether the field of the view can be written by a drag at all (the engine names how). */
+  const movable = $derived(!!first?.writable && first.mode !== undefined && !app.writing);
+
+  function refuse(reason: Refusal): void {
+    if (reason !== 'same') app.notice = { key: `views.refused.${reason}` as Key };
+  }
+
+  async function drop(id: string, from: string, to: string): Promise<void> {
+    const item = itemOf(id);
+    if (!item || !first) return;
+    const d = dropOp(item, first, from, to);
+    if (d.kind === 'refused') return refuse(d.reason);
+    await app.write([d.op]);
+    focusItem(id);
+  }
+
+  function canDrop(id: string, from: string, to: string): boolean {
+    const item = itemOf(id);
+    return !!item && !!first && dropOp(item, first, from, to).kind === 'op';
+  }
+
+  /** The keys stay on the rule that moved, in its new group. */
+  function focusItem(id: string): void {
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`.views [data-view-item="${CSS.escape(id)}"]`)?.focus());
+  }
+
+  /** Shift with h or l on a rule: into the group before or after, as the keys of tasks-desktop. */
+  function onItemKey(event: KeyboardEvent, id: string, from: string): void {
+    if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = event.key.toLowerCase();
+    if (key !== 'h' && key !== 'l') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat || app.writing) return;
+    // A field the engine does not write: said, not silently ignored.
+    if (!movable) return refuse('read_only');
+    const to = neighbourGroup(groups, from, key === 'l' ? 1 : -1);
+    if (to !== null) void drop(id, from, to);
+  }
+
+  // A matrix: a rule of the opened cell is dragged onto another cell, or moved with Shift and h, l, j, k.
+  let draggingCell = $state<{ id: string; from: Cell } | null>(null);
+
+  async function dropCell(id: string, from: Cell, to: Cell): Promise<void> {
+    const item = itemOf(id);
+    if (!item || !first || !second) return;
+    const d = cellDropOp(item, first, second, from, to);
+    if (d.kind === 'refused') return refuse(d.reason);
+    await app.write([d.op]);
+    opened = to;
+    focusItem(id);
+  }
+
+  function onCellItemKey(event: KeyboardEvent, id: string, at: Cell): void {
+    if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+    const moves: Record<string, 'up' | 'down' | 'left' | 'right'> = { h: 'left', l: 'right', k: 'up', j: 'down' };
+    const move = moves[event.key.toLowerCase()];
+    if (!move) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat) return;
+    const to = neighbourCell(rows, columns, at, move);
+    if (to !== null) void dropCell(id, at, to);
+  }
+
   const label = (value: string) => valueLabel(first, value);
   const rowLabel = (value: string) => valueLabel(first, value);
   const columnLabel = (value: string) => valueLabel(second, value);
   const countOfCell = (cell: Cell) => cells.find((c) => c.row === cell.row && c.column === cell.column)?.items.length ?? 0;
 </script>
 
-{#snippet rule(item: Item, _group: Group<Item>)}
+{#snippet rule(item: Item, group: Group<Item>)}
   {#if item.rule}
-    <button type="button" class="rule" onclick={() => void app.openDetail(item.id)}>
+    <button
+      type="button"
+      class="rule"
+      data-view-item={item.id}
+      onclick={() => void app.openDetail(item.id)}
+      onkeydown={(e) => onItemKey(e, item.id, group.value)}
+    >
       <span class="id">{item.id}</span>
       <span class="title">{item.title}</span>
     </button>
   {:else}
-    <span class="rule retired"><span class="id">{item.id}</span> <span class="title">{t('views.value.status.retired')}</span></span>
+    <!-- A retired rule has no detail: a key moves it all the same (back to active, by status). -->
+    <button type="button" class="rule retired" data-view-item={item.id} onkeydown={(e) => onItemKey(e, item.id, group.value)}>
+      <span class="id">{item.id}</span> <span class="title">{t('views.value.status.retired')}</span>
+    </button>
   {/if}
 {/snippet}
 
@@ -212,10 +293,31 @@
           cellLabel={(cell, n) => t('views.cell', { row: rowLabel(cell.row), column: columnLabel(cell.column), n })}
           {opened}
           onopen={(cell) => (opened = opened && opened.row === cell.row && opened.column === cell.column ? null : cell)}
+          dragging={draggingCell !== null}
+          ondropcell={(cell) => {
+            const from = draggingCell;
+            draggingCell = null;
+            if (from) void dropCell(from.id, from.from, cell);
+          }}
         />
         {#if opened}
           <ul class="cell-items" aria-label={t('views.cell', { row: rowLabel(opened.row), column: columnLabel(opened.column), n: openedItems.length })}>
-            {#each openedItems as item (item.id)}<li>{@render rule(item, { value: '', items: [] })}</li>{/each}
+            {#each openedItems as item (item.id)}
+              {@const at = opened}
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <!-- The keys come from the button of the rule inside (they rise to the row); the row is what is dragged. -->
+              <li
+                draggable={!app.writing}
+                ondragstart={(e) => {
+                  draggingCell = { id: item.id, from: at };
+                  e.dataTransfer?.setData('text/plain', item.id);
+                }}
+                ondragend={() => (draggingCell = null)}
+                onkeydown={(e) => onCellItemKey(e, item.id, at)}
+              >
+                {@render rule(item, { value: '', items: [] })}
+              </li>
+            {/each}
           </ul>
         {/if}
       {:else}
@@ -227,6 +329,10 @@
           collapsed={current.collapsed}
           ontoggle={toggle}
           columnsLabel={current.title}
+          busy={app.writing}
+          ondrop={movable ? (id, from, to) => void drop(id, from, to) : undefined}
+          {canDrop}
+          gripHint={t('views.grip')}
         />
       {/if}
     {:else if app.viewsState === 'ready'}

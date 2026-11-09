@@ -771,6 +771,65 @@ test('a saved view is made, drawn as columns, a list and a matrix, renamed, fold
   for (const slug of ['by-family-e2e', 'matrix-e2e']) rmSync(file(slug), { force: true });
 });
 
+test('a rule dragged to another group of a view, or moved with Shift and a key, writes that field, and Undo takes it back', async ({ page }) => {
+  await pair(page);
+  const vault = state().vault;
+  const rule = join(vault, 'rulesets', 'gamma', '_rules', 'WR', 'WR-03.md');
+  const retired = join(vault, 'rulesets', 'gamma', '_retired', 'WR', 'WR-03.md');
+  const toast = page.getByRole('status').filter({ hasText: /Saved\.|Taken back\./ });
+  await page.keyboard.press('g');
+  await page.keyboard.press('v');
+  const tab = page.getByRole('region', { name: 'Views', exact: true });
+  const make = async (title: string, groupBy: string): Promise<void> => {
+    const form = tab.locator('details.new');
+    if (!(await form.evaluate((d) => (d as HTMLDetailsElement).open))) await form.locator('summary').click();
+    await tab.getByLabel('Title', { exact: true }).fill(title);
+    await tab.getByLabel('Drawn as').selectOption('columns');
+    await tab.getByLabel('Grouped by').selectOption(groupBy);
+    await tab.getByRole('button', { name: 'Make the view' }).click();
+    await expect(tab.getByLabel('View', { exact: true })).toHaveValue(title.toLowerCase().replace(/ /g, '-'));
+  };
+  const item = (group: string) => tab.locator(`[data-group="${group}"] [data-view-item="WR-03"]`);
+
+  // By severity: WR-03 is nice-to-have; Shift+h moves it to the group before (recommended), on its version.
+  await make('Severity drag e2e', 'severity');
+  await item('nice-to-have').focus();
+  await page.keyboard.press('Shift+h');
+  await expect(toast).toContainText('Saved.');
+  await expect.poll(() => readFileSync(rule, 'utf8')).toMatch(/^severity: recommended$/m);
+  await expect(item('recommended')).toBeFocused();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(toast).toContainText('Taken back.');
+  await expect.poll(() => readFileSync(rule, 'utf8')).toMatch(/^severity: nice-to-have$/m);
+
+  // The mouse: onto the column of critical, and back.
+  await item('nice-to-have').dragTo(tab.locator('[data-group="critical"]'));
+  await expect.poll(() => readFileSync(rule, 'utf8')).toMatch(/^severity: critical$/m);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(() => readFileSync(rule, 'utf8')).toMatch(/^severity: nice-to-have$/m);
+  await expectAccessible(page, 'a view whose rules can be dragged');
+
+  // By status: retired is a retire, back to active a reinstate.
+  await make('Status drag e2e', 'status');
+  await item('active').focus();
+  await page.keyboard.press('Shift+l');
+  await expect.poll(() => existsSync(retired)).toBe(true);
+  expect(existsSync(rule)).toBe(false);
+  await item('retired').focus();
+  await page.keyboard.press('Shift+h');
+  await expect.poll(() => existsSync(rule)).toBe(true);
+  expect(existsSync(retired)).toBe(false);
+
+  // By family: the engine does not write it; the page says why and writes nothing.
+  const before = readFileSync(rule, 'utf8');
+  await make('Family drag e2e', 'family');
+  await item('WR').focus();
+  await page.keyboard.press('Shift+l');
+  await expect(page.getByText('This field is not written by a drag', { exact: false })).toBeVisible();
+  expect(readFileSync(rule, 'utf8')).toBe(before);
+  for (const slug of ['severity-drag-e2e', 'status-drag-e2e', 'family-drag-e2e']) rmSync(join(vault, 'views', `${slug}.md`), { force: true });
+});
+
 test('a rule set is made, moved to the archive and brought back, and nothing is deleted', async ({ page }) => {
   await pair(page);
   const vault = state().vault;

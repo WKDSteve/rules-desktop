@@ -2,7 +2,9 @@ import { groupsOf } from 'appkit-ui/groups';
 import { describe, expect, it } from 'vitest';
 import type { Grouping } from './views';
 import {
+  cellDropOp,
   defOf,
+  dropOp,
   EVERY,
   fieldOf,
   isViewOp,
@@ -95,5 +97,56 @@ describe('the saved views', () => {
     expect(viewDeleteOp(view.id, view.etag)).toEqual({ op: 'view_delete', id: view.id, if_match: view.etag });
     expect(isViewOp(viewDeleteOp('a', 'b'))).toBe(true);
     expect(isViewOp({ op: 'set' })).toBe(false);
+  });
+});
+
+describe('a drop onto another group', () => {
+  const snap = snapshotDoc();
+  snap.retired = [{ id: 'OLD-01', family: 'OLD', source: 'Checklists/_retired/OLD/OLD-01.md' }];
+  const items = itemsOf(snap);
+  const dep = items[0]!;
+  const old = items.at(-1)!;
+  const layout: Grouping = {
+    field: 'layout',
+    ruleset: 'Checklists',
+    layout: 'regeln/DEP.md',
+    values: ['A', 'B'],
+    truncated: false,
+    writable: true,
+    mode: 'move',
+    members: [{ id: 'DEP-01', value: 'A' }],
+  };
+
+  it('writes the severity with set on the version shown, and never takes it away', () => {
+    expect(dropOp(dep, field('severity'), 'recommended', 'critical')).toEqual({
+      kind: 'op',
+      op: { op: 'set', id: 'DEP-01', patch: { severity: 'critical' }, if_match: dep.rule!.etag },
+    });
+    expect(dropOp(dep, field('severity'), 'critical', '')).toEqual({ kind: 'refused', reason: 'required' });
+    expect(dropOp(dep, field('severity'), 'critical', 'urgent')).toEqual({ kind: 'refused', reason: 'unknown' });
+    expect(dropOp(old, field('severity'), '', 'critical')).toEqual({ kind: 'refused', reason: 'retired' });
+  });
+
+  it('retires onto retired and reinstates back onto active', () => {
+    expect(dropOp(dep, field('status'), 'active', 'retired')).toEqual({ kind: 'op', op: { op: 'retire', id: 'DEP-01', if_match: dep.rule!.etag } });
+    expect(dropOp(old, field('status'), 'retired', 'active')).toEqual({ kind: 'op', op: { op: 'reinstate', id: 'OLD-01' } });
+    expect(dropOp(dep, field('status'), 'active', 'active')).toEqual({ kind: 'refused', reason: 'same' });
+  });
+
+  it('moves the line of the rule into a section of the layout, or to its top for the group of none', () => {
+    expect(dropOp(dep, layout, 'A', 'B')).toEqual({ kind: 'op', op: { op: 'move', id: 'DEP-01', section: 'B', layout: 'regeln/DEP.md' } });
+    expect(dropOp(dep, layout, 'A', '')).toEqual({ kind: 'op', op: { op: 'move', id: 'DEP-01', top: true, layout: 'regeln/DEP.md' } });
+  });
+
+  it('refuses a field the engine does not write, and in a matrix a drop that changes both fields', () => {
+    expect(dropOp(dep, field('family'), 'DEP', 'ERR')).toEqual({ kind: 'refused', reason: 'read_only' });
+    expect(dropOp(dep, field('waiver'), 'active', 'expired')).toEqual({ kind: 'refused', reason: 'read_only' });
+    const rows = field('severity');
+    const columns = field('status');
+    const at = { row: 'recommended', column: 'active' };
+    expect(cellDropOp(dep, rows, columns, at, { row: 'critical', column: 'retired' })).toEqual({ kind: 'refused', reason: 'both' });
+    expect(cellDropOp(dep, rows, columns, at, { row: 'critical', column: 'active' })).toMatchObject({ kind: 'op', op: { op: 'set' } });
+    expect(cellDropOp(dep, rows, columns, at, { row: 'recommended', column: 'retired' })).toMatchObject({ kind: 'op', op: { op: 'retire' } });
+    expect(cellDropOp(dep, rows, columns, at, at)).toEqual({ kind: 'refused', reason: 'same' });
   });
 });

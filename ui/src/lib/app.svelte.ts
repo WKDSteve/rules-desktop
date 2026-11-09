@@ -1025,6 +1025,8 @@ export class App {
       if (ops.some(isRulesetOp)) await this.loadRulesets();
       if (ops.some(isViewOp)) await this.loadViews();
       if (outcome.saved > 0) await this.afterWrite(outcome.changedIds);
+      // A rule that moved changes the groups a view shows (a layout's sections are read with the fields).
+      if (outcome.saved > 0 && this.view === 'views' && !ops.some(isViewOp)) await this.loadViews();
       return outcome;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) return null;

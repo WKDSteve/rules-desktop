@@ -4,7 +4,8 @@
 // to a view's selection. The groups themselves are the kit's (`appkit-ui/groups`).
 
 import type { Groupings, Retired, RuleSummary, Snapshot, Views, Waivers } from './contract';
-import type { Op } from './write';
+import { reinstateOp, retireOp, setOp, type Op } from './write';
+import { NONE } from 'appkit-ui/groups';
 
 /** A field of `rules.groupings`. */
 export type Grouping = Groupings['fields'][number];
@@ -125,6 +126,51 @@ export function selected(items: readonly Item[], select: SavedView['select']): I
       has(select.rulesets, i.ruleset) &&
       (query === '' || i.id.toLowerCase().includes(query) || i.title.toLowerCase().includes(query)),
   );
+}
+
+/** Why a drop is not written. */
+export type Refusal = 'read_only' | 'same' | 'required' | 'retired' | 'unknown' | 'both';
+
+/** What a drop of a rule onto a group comes to: the operation the engine names for the field, or why there is none. */
+export type Drop = { kind: 'op'; op: Op } | { kind: 'refused'; reason: Refusal };
+
+/**
+ * The drop of a rule from the group `from` onto the group `to` of a field, as `rules.groupings` says it is written:
+ *
+ * - `set` (the severity): one `set` on the version shown; a rule must have one, and a retired rule is not changed;
+ * - `retire` (the status): onto `retired` a `retire` on the version shown, back onto `active` a `reinstate`;
+ * - `move` (the section of a layout): the `move` of the rule's line into that section of that layout, onto the group of
+ *   none to the top of the layout (above every heading);
+ * - a field the engine does not write: refused.
+ */
+export function dropOp(item: Item, grouping: Grouping, from: string, to: string): Drop {
+  const refused = (reason: Refusal): Drop => ({ kind: 'refused', reason });
+  if (!grouping.writable || grouping.mode === undefined) return refused('read_only');
+  if (from === to) return refused('same');
+  if (to !== NONE && !grouping.values.includes(to)) return refused('unknown');
+  if (grouping.mode === 'retire') {
+    if (to === 'retired' && item.rule) return { kind: 'op', op: retireOp(item.id, item.rule.etag) };
+    if (to === 'active' && !item.rule) return { kind: 'op', op: reinstateOp(item.id) };
+    return refused('unknown');
+  }
+  if (!item.rule) return refused('retired');
+  if (grouping.mode === 'set') {
+    if (to === NONE) return refused('required');
+    return { kind: 'op', op: setOp(item.id, { severity: to as NonNullable<RuleSummary['severity']> }, item.rule.etag) };
+  }
+  const layout = grouping.layout ?? '';
+  const place = to === NONE ? { top: true, layout } : { section: to, layout };
+  return { kind: 'op', op: { op: 'move', id: item.id, ...place } };
+}
+
+/** The drop of a rule from one cell of a matrix onto another: one field that changes, as `dropOp`; both: refused. */
+export function cellDropOp(item: Item, rows: Grouping, columns: Grouping, from: { row: string; column: string }, to: { row: string; column: string }): Drop {
+  const row = from.row !== to.row;
+  const column = from.column !== to.column;
+  if (row && column) return { kind: 'refused', reason: 'both' };
+  if (row) return dropOp(item, rows, from.row, to.row);
+  if (column) return dropOp(item, columns, from.column, to.column);
+  return { kind: 'refused', reason: 'same' };
 }
 
 /** An empty selection: every rule. */
