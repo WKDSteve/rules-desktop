@@ -3,7 +3,7 @@
 
 import { Hub } from './api';
 import type { Env } from './app.svelte';
-import { errorDoc, goldenText, hubSourcesDoc, rulesetsDoc, snapshotDoc, waiversDoc } from './fixtures';
+import { errorDoc, goldenText, groupingsDoc, hubSourcesDoc, rulesetsDoc, snapshotDoc, viewsDoc, waiversDoc } from './fixtures';
 
 export const CODE = 'ab'.repeat(16);
 export const TOKEN = 'token-1';
@@ -47,6 +47,10 @@ export class FakeHub {
   waiversAnswer: () => { status: number; body: unknown } = () => ({ status: 200, body: waiversDoc() });
   /** What `rulesets` answers: a status and a document (default: the golden one). */
   rulesetsAnswer: () => { status: number; body: unknown } = () => ({ status: 200, body: rulesetsDoc() });
+  /** What `groupings` answers (default: the golden one). */
+  groupingsAnswer: () => { status: number; body: unknown } = () => ({ status: 200, body: groupingsDoc() });
+  /** What `views` answers (default: the golden one, one view). */
+  viewsAnswer: () => { status: number; body: unknown } = () => ({ status: 200, body: viewsDoc() });
   /** The bodies `sources/class` was sent, as parsed. */
   classRequests: Record<string, unknown>[] = [];
   /** What `sources/class` answers for a body: a status and a document (default: written). */
@@ -155,6 +159,14 @@ export class FakeHub {
       }
       case '/api/rules/waivers': {
         const answer = this.waiversAnswer();
+        return json(answer.body, answer.status);
+      }
+      case '/api/rules/groupings': {
+        const answer = this.groupingsAnswer();
+        return json(answer.body, answer.status);
+      }
+      case '/api/rules/views': {
+        const answer = this.viewsAnswer();
         return json(answer.body, answer.status);
       }
       case '/api/rules/ops': {

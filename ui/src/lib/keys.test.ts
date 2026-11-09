@@ -20,7 +20,7 @@ function run(keys: [string, number, Partial<KeyPress>?][], shortcuts = true): (s
 // The keys themselves are tested in the kit (keymap.test.ts); here are the views of this page.
 describe('the keys of the page', () => {
   it('go to every view with g and a letter', () => {
-    const letters: [string, string][] = [['h', 'overview'], ['f', 'families'], ['l', 'rules'], ['c', 'coverage'], ['w', 'waivers'], ['s', 'sources']];
+    const letters: [string, string][] = [['h', 'overview'], ['f', 'families'], ['l', 'rules'], ['v', 'views'], ['c', 'coverage'], ['w', 'waivers'], ['s', 'sources']];
     for (const [letter, view] of letters) {
       expect(run([['g', 0], [letter, 10]])).toEqual([null, `go:${view}`]);
     }

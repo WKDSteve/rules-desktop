@@ -91,8 +91,10 @@ export function summarize(request: readonly Op[], result: Result): Outcome {
       continue;
     }
     if (entry.id) out.ids.push(entry.id);
-    // A rule set that was made, moved or brought back has no rule id: its entry names the rule set instead.
-    if (result.dry_run || (entry.changed_ids.length === 0 && !entry.ruleset)) continue;
+    // A rule set that was made, moved or brought back has no rule id: its entry names the rule set instead. A view
+    // holds no rule either: an entry of a view that was made, changed or deleted is a change all the same.
+    const view = isViewOp(request[entry.n - 1]) && entry.outcome !== 'unchanged';
+    if (result.dry_run || (entry.changed_ids.length === 0 && !entry.ruleset && !view)) continue;
     out.saved += 1;
     out.changedIds.push(...entry.changed_ids);
     const inverse = entry.inverse;
@@ -168,6 +170,11 @@ export function moveOp(id: string, place: { after: string } | { before: string }
 
 /** The operations on the waivers of the project of the device. */
 export const WAIVER_OPS: readonly string[] = ['waive', 'renew', 'remove'];
+
+/** Whether an operation writes a saved view (`view_save`, `view_delete`): it holds no rule. */
+export function isViewOp(op: Op | null | undefined): boolean {
+  return op?.op === 'view_save' || op?.op === 'view_delete';
+}
 
 export function isWaiverOp(op: Op | null | undefined): boolean {
   return op !== null && op !== undefined && WAIVER_OPS.includes(op.op);

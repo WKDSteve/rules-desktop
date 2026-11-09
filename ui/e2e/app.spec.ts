@@ -701,6 +701,76 @@ test('a class is set, a change that releases more is asked first, and only sourc
   seen.splice(0, seen.length, ...seen.filter((m) => !m.includes('409') && !m.includes('400')));
 });
 
+test('a saved view is made, drawn as columns, a list and a matrix, renamed, folded and deleted, and lives in the vault', async ({ page }) => {
+  await pair(page);
+  const vault = state().vault;
+  const file = (slug: string) => join(vault, 'views', `${slug}.md`);
+  await page.keyboard.press('g');
+  await page.keyboard.press('v');
+  const tab = page.getByRole('region', { name: 'Views', exact: true });
+  await expect(tab).toBeVisible();
+  // The form for a new view stays as the person left it: open it when it is folded.
+  const openNew = async (): Promise<void> => {
+    const form = tab.locator('details.new');
+    if (!(await form.evaluate((d) => (d as HTMLDetailsElement).open))) await form.locator('summary').click();
+  };
+
+  // Made: columns by family; the file is in the vault, the groups are the families of the rules.
+  await tab.getByLabel('Title', { exact: true }).fill('By family e2e');
+  await tab.getByLabel('Drawn as').selectOption('columns');
+  await tab.getByLabel('Grouped by').selectOption('family');
+  await tab.getByRole('button', { name: 'Make the view' }).click();
+  await expect.poll(() => existsSync(file('by-family-e2e'))).toBe(true);
+  expect(readFileSync(file('by-family-e2e'), 'utf8')).toMatch(/^group_by: family$/m);
+  const columns = tab.getByRole('group', { name: 'By family e2e' }).or(tab.getByRole('region', { name: 'By family e2e' })).first();
+  await expect(columns).toBeVisible();
+  await expect(tab.locator('[data-group]').first()).toBeVisible();
+  // A rule of a group opens its detail.
+  await tab.locator('[data-group] button.rule').first().click();
+  await expect(page.locator('aside, [role="complementary"]').first()).toBeVisible();
+  await expectAccessible(page, 'a saved view as columns');
+
+  // Renamed: the title in the file, on the version read.
+  await tab.getByLabel('New title').fill('Families e2e');
+  await tab.getByRole('button', { name: 'Rename', exact: true }).click();
+  await expect.poll(() => readFileSync(file('by-family-e2e'), 'utf8')).toMatch(/^title: Families e2e$/m);
+  await expect(tab.getByLabel('View', { exact: true })).toHaveValue('by-family-e2e');
+
+  // A matrix of severity by status: a count per cell, a cell opens its rules.
+  await openNew();
+  await tab.getByLabel('Title', { exact: true }).fill('Matrix e2e');
+  await tab.getByLabel('Drawn as').selectOption('matrix');
+  await tab.getByLabel('Grouped by').selectOption('severity');
+  await tab.getByLabel('and across by').selectOption('status');
+  await tab.getByRole('button', { name: 'Make the view' }).click();
+  await expect.poll(() => existsSync(file('matrix-e2e'))).toBe(true);
+  await expect(tab.getByLabel('View', { exact: true })).toHaveValue('matrix-e2e');
+  const count = tab.getByRole('button', { name: /^critical, active: \d+ rules$/ });
+  await expect(count).toBeVisible();
+  await count.click();
+  await expect(tab.getByRole('list', { name: /^critical, active: \d+ rules$/ })).toBeVisible();
+  await expectAccessible(page, 'a saved view as a matrix');
+
+  // A list by severity: a group folded is kept in the file.
+  await openNew();
+  await tab.getByLabel('Title', { exact: true }).fill('List e2e');
+  await tab.getByLabel('Drawn as').selectOption('list');
+  await tab.getByLabel('Grouped by').selectOption('severity');
+  await tab.getByRole('button', { name: 'Make the view' }).click();
+  await expect.poll(() => existsSync(file('list-e2e'))).toBe(true);
+  await tab.getByRole('button', { name: /^critical/ }).first().click();
+  await expect.poll(() => readFileSync(file('list-e2e'), 'utf8')).toMatch(/collapsed/);
+
+  // Deleted after a question; "Keep it" deletes nothing.
+  await tab.getByRole('button', { name: 'Delete the view' }).click();
+  await tab.getByRole('button', { name: 'Keep it' }).click();
+  expect(existsSync(file('list-e2e'))).toBe(true);
+  await tab.getByRole('button', { name: 'Delete the view' }).click();
+  await tab.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect.poll(() => existsSync(file('list-e2e'))).toBe(false);
+  for (const slug of ['by-family-e2e', 'matrix-e2e']) rmSync(file(slug), { force: true });
+});
+
 test('a rule set is made, moved to the archive and brought back, and nothing is deleted', async ({ page }) => {
   await pair(page);
   const vault = state().vault;

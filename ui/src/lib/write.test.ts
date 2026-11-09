@@ -80,6 +80,14 @@ describe('summarize', () => {
     expect(summarize([set], result([{ ...entry, changed_ids: [] }]))).toMatchObject({ saved: 0, undo: [] });
   });
 
+  it('counts a view made, changed or deleted although it changes no rule, with its way back, and not one left as it was', () => {
+    const save: Op = { op: 'view_save', view: { title: 'T' } };
+    const made = { n: 1, ok: true, op: 'view_save', id: 't', outcome: 'created', changed_ids: [], inverse: { op: 'view_delete', id: 't', if_match: 'sha256:1' } };
+    expect(summarize([save], result([made]))).toMatchObject({ saved: 1, ids: ['t'], undo: [{ op: 'view_delete', id: 't', if_match: 'sha256:1' }] });
+    expect(summarize([save], result([{ ...made, outcome: 'unchanged', inverse: undefined }]))).toMatchObject({ saved: 0, undo: [] });
+    expect(summarize([save], result([made], true))).toMatchObject({ saved: 0, undo: [] });
+  });
+
   it('takes the id of a failed entry from the operation when the entry does not say it', () => {
     const out = summarize(
       [set],

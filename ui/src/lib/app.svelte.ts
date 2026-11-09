@@ -7,7 +7,8 @@ import type { Route } from 'appkit-ui/route';
 import { Preferences, StreamSession } from 'appkit-ui/session';
 import type { SseMessage } from 'appkit-ui/sse';
 import { ApiError, type ClassChange, type Hub, type HubSources } from './api';
-import type { Rule, RuleSummary, Rulesets, Snapshot, Waivers } from './contract';
+import type { Groupings, Rule, RuleSummary, Rulesets, Snapshot, Views, Waivers } from './contract';
+import { isViewOp } from './views';
 import { familyRows, type FamilyRow } from './families';
 import { applyFilter, emptyFilter, moveSelection, type Filter } from './filter';
 import { LANGS, type Key, type Lang } from './i18n';
@@ -35,10 +36,10 @@ import {
 
 export type Phase = 'starting' | 'needs_pairing' | 'offline' | 'unavailable' | 'ready';
 export type Connection = 'live' | 'reconnecting' | 'offline';
-export type View = 'overview' | 'families' | 'rules' | 'coverage' | 'waivers' | 'sources';
+export type View = 'overview' | 'families' | 'rules' | 'views' | 'coverage' | 'waivers' | 'sources';
 export type Theme = 'auto' | 'light' | 'dark';
 
-export const VIEWS: readonly View[] = ['overview', 'families', 'rules', 'coverage', 'waivers', 'sources'];
+export const VIEWS: readonly View[] = ['overview', 'families', 'rules', 'views', 'coverage', 'waivers', 'sources'];
 
 /**
  * A place the person can go back to: the view and the rule that is open in it. Filters, the search and the cursor are
@@ -525,6 +526,8 @@ export class App {
       // Always the snapshot: the ids follow the etag of the file, and a change of the gates alone comes with empty
       // lists. The tag makes it cheap when nothing changed.
       await this.refresh();
+      // A layout or a rule that moved changes what the views show.
+      if (this.view === 'views') await this.loadViews();
       const open = this.detail.state === 'none' ? null : this.detail.id;
       if (open === null) return;
       if (ids(doc['removed']).includes(open)) {
@@ -941,6 +944,35 @@ export class App {
     return this.waivers?.etag ?? null;
   }
 
+  // ── the views of the rules (`rules.groupings`, `rules.views`) ─────────────
+
+  /** The fields a view groups by, as the engine names them; `null` until read. */
+  groupings = $state.raw<Groupings | null>(null);
+  /** The saved views of the vault; `null` until read. */
+  savedViews = $state.raw<Views | null>(null);
+  /** `failed`: the engine could not answer (no vault, say: the views live in the vault). */
+  viewsState = $state<'idle' | 'ready' | 'failed'>('idle');
+  /** The saved view shown in the tab, by id; `null`: the first one. */
+  viewId = $state<string | null>(null);
+
+  /**
+   * Read the fields and the saved views again (and the waivers, which a view can group by). A change of a view sends
+   * no event of the stream (the snapshot is the rules'), so they are read when the tab shows, after a write of a view
+   * and with every change of the rules.
+   */
+  async loadViews(): Promise<void> {
+    try {
+      const [groupings, views] = await Promise.all([this.env.hub.groupings(), this.env.hub.views()]);
+      this.groupings = groupings;
+      this.savedViews = views;
+      this.viewsState = 'ready';
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) return;
+      this.viewsState = 'failed';
+    }
+    if (this.waiversState === 'idle') await this.loadWaivers();
+  }
+
   /** The dialog for a new rule is open. */
   newRuleOpen = $state(false);
 
@@ -991,6 +1023,7 @@ export class App {
       if (ops.some(isWaiverOp)) await this.loadWaivers();
       // The rule sets are not rules: no event of the stream tells they changed.
       if (ops.some(isRulesetOp)) await this.loadRulesets();
+      if (ops.some(isViewOp)) await this.loadViews();
       if (outcome.saved > 0) await this.afterWrite(outcome.changedIds);
       return outcome;
     } catch (error) {

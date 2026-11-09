@@ -76,7 +76,7 @@ pub fn cli_config(setup: &Setup, env: Env) -> CliEngineConfig {
 /// entry; it knows no call by name. `bodies` is not a call of the engine: it names the pages of rule
 /// text the search index asks for, answered inside the hub from `snapshot` and `rule`, and never
 /// sent. `ops` is the one that writes; its answer is a `rules.result`.
-static SPECS: [MethodSpec; 8] = [
+static SPECS: [MethodSpec; 10] = [
     MethodSpec::bare("hello", "rules.hello"),
     MethodSpec::bare("snapshot", "rules.snapshot"),
     MethodSpec::read("rule", "rules.rule"),
@@ -85,6 +85,8 @@ static SPECS: [MethodSpec; 8] = [
     MethodSpec::write("ops", "rules.result"),
     MethodSpec::read("waivers", "rules.waivers"),
     MethodSpec::bare("rulesets", "rules.rulesets"),
+    MethodSpec::bare("groupings", "rules.groupings"),
+    MethodSpec::bare("views", "rules.views"),
 ];
 
 /// The calls of the rules engine, by name.
@@ -100,9 +102,11 @@ impl Calls {
     pub const Ops: Method = Method::new(&SPECS[5]);
     pub const Waivers: Method = Method::new(&SPECS[6]);
     pub const Rulesets: Method = Method::new(&SPECS[7]);
+    pub const Groupings: Method = Method::new(&SPECS[8]);
+    pub const Views: Method = Method::new(&SPECS[9]);
 
     /// Every call of the table.
-    pub const ALL: [Method; 8] = [
+    pub const ALL: [Method; 10] = [
         Self::Hello,
         Self::Snapshot,
         Self::Rule,
@@ -111,6 +115,8 @@ impl Calls {
         Self::Ops,
         Self::Waivers,
         Self::Rulesets,
+        Self::Groupings,
+        Self::Views,
     ];
 
     /// Parse the name of a route or a request. Nothing else is accepted.
@@ -138,13 +144,16 @@ mod tests {
     }
 
     #[test]
-    fn hello_snapshot_and_rulesets_take_no_parameters() {
+    fn hello_snapshot_rulesets_groupings_and_views_take_no_parameters() {
         let bare: Vec<_> = Calls::ALL
             .iter()
             .filter(|m| !m.takes_params())
             .map(|m| m.as_str())
             .collect();
-        assert_eq!(bare, ["hello", "snapshot", "rulesets"]);
+        assert_eq!(
+            bare,
+            ["hello", "snapshot", "rulesets", "groupings", "views"]
+        );
     }
 
     #[test]

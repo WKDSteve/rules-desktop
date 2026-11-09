@@ -2,9 +2,11 @@
 // (crates/rules-hub/tests/fixtures/golden), not copied a second time: the one `cmp` in CI against the pinned engine
 // covers the hub and the page alike.
 
-import type { Error as EngineError, Rule, Rulesets, Snapshot, Waivers } from './contract';
+import type { Error as EngineError, Groupings, Rule, Rulesets, Snapshot, Views, Waivers } from './contract';
 import type { HubSources } from './api';
 import goldenError from '../../../crates/rules-hub/tests/fixtures/golden/error.json';
+import goldenGroupings from '../../../crates/rules-hub/tests/fixtures/golden/groupings.json';
+import goldenViews from '../../../crates/rules-hub/tests/fixtures/golden/views.json';
 import goldenRulesets from '../../../crates/rules-hub/tests/fixtures/golden/rulesets.json';
 import goldenRule from '../../../crates/rules-hub/tests/fixtures/golden/rule.json';
 import goldenSnapshot from '../../../crates/rules-hub/tests/fixtures/golden/snapshot.json';
@@ -40,6 +42,16 @@ export function rulesetsDoc(): Rulesets {
 /** `rules.waivers`: three waivers, one expired, one for a rule that is not loaded. */
 export function waiversDoc(): Waivers {
   return copy(ofKind<Waivers>(goldenWaivers, 'rules.waivers'));
+}
+
+/** `rules.groupings` of the golden snapshot: family, severity, status, waiver (no layout in that rule set). */
+export function groupingsDoc(): Groupings {
+  return copy(ofKind<Groupings>(goldenGroupings, 'rules.groupings'));
+}
+
+/** `rules.views`: one view, "By severity" (columns, by severity, the family DEP). */
+export function viewsDoc(): Views {
+  return copy(ofKind<Views>(goldenViews, 'rules.views'));
 }
 
 /** `rules.error`: not_found. */

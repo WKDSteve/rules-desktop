@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 
 use crate::answer::{ask, engine_failure, engine_unavailable};
-use crate::engine::Calls;
+use crate::engine::{Calls, Method};
 use crate::routes::{no_snapshot, Shared};
 use crate::runtime::Held;
 use crate::sources::{Shown, SourcePolicy};
@@ -30,7 +30,7 @@ pub const OPS_MAX: usize = 100;
 
 /// The operations the page may ask for. `waive`, `renew` and `remove` write the waiver file of the
 /// project of this device and not a rule set: the hub puts the project in itself (`with_project`).
-pub const OPS_ALLOWED: [&str; 11] = [
+pub const OPS_ALLOWED: [&str; 13] = [
     "new",
     "set",
     "retire",
@@ -42,10 +42,16 @@ pub const OPS_ALLOWED: [&str; 11] = [
     "create_ruleset",
     "archive_ruleset",
     "restore_ruleset",
+    "view_save",
+    "view_delete",
 ];
 
 /// The operations on the waivers of a project.
 pub const WAIVER_OPS: [&str; 3] = ["waive", "renew", "remove"];
+
+/// The operations on the saved views of the vault (`<vault>/views/`). A view holds no rule, only a way to look at
+/// them: it is the same on every machine and has no class of a rule set; the engine judges the view itself.
+pub const VIEW_OPS: [&str; 2] = ["view_save", "view_delete"];
 
 /// The operations on the rule sets of the vault (which ones it holds), not on a rule: `archive_ruleset` moves a rule set
 /// to the archive of the vault and never deletes it.
@@ -153,6 +159,9 @@ pub(crate) fn authorize(
         }
         if RULESET_OPS.contains(&name) {
             check_ruleset_op(policy, held, n, name, text("name"))?;
+            continue;
+        }
+        if VIEW_OPS.contains(&name) {
             continue;
         }
         let source = if name == "new" {
@@ -447,6 +456,35 @@ pub(crate) async fn rulesets(State(st): State<Arc<Shared>>, RawQuery(query): Raw
     }
 }
 
+/// `GET /api/rules/groupings`: the fields a view of the rules groups by, their values and how a drag
+/// between two groups is written (`rules.groupings`), as the engine says it.
+pub(crate) async fn groupings(
+    State(st): State<Arc<Shared>>,
+    RawQuery(query): RawQuery,
+) -> Response {
+    bare_read(&st, query.as_deref(), Calls::Groupings).await
+}
+
+/// `GET /api/rules/views`: the saved views of the vault (`rules.views`), as the engine says it.
+pub(crate) async fn views(State(st): State<Arc<Shared>>, RawQuery(query): RawQuery) -> Response {
+    bare_read(&st, query.as_deref(), Calls::Views).await
+}
+
+/// A call without parameters, answered as the engine gives it: no query, an engine, the document.
+async fn bare_read(st: &Arc<Shared>, query: Option<&str>, call: Method) -> Response {
+    if let Some(response) = no_query(query) {
+        return response;
+    }
+    let rt = st.rt();
+    if !rt.store.has_engine() {
+        return engine_unavailable(&rt);
+    }
+    match ask(&rt, call, None).await {
+        Ok(reply) => json_response(StatusCode::OK, reply.text, None),
+        Err(response) => response,
+    }
+}
+
 /// The longest family the page asks about: the engine takes 1 to 12 letters for a new one, and a
 /// family it has already may be spelled otherwise.
 const FAMILY_MAX: usize = 32;
@@ -492,6 +530,9 @@ pub(crate) async fn next_id(State(st): State<Arc<Shared>>, RawQuery(query): RawQ
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap, HashSet};
+    use std::sync::OnceLock;
+
     use super::*;
 
     fn refused(body: &str) -> String {
@@ -531,6 +572,29 @@ mod tests {
             let body = json!({"client_op_id": id, "ops": [{"op": "set"}]}).to_string();
             assert!(refused(&body).starts_with("client_op_id"), "{id:?}");
         }
+    }
+
+    #[test]
+    fn a_view_is_written_without_a_rule_or_a_class_and_a_rule_still_needs_both() {
+        let held = Held {
+            ids: HashSet::new(),
+            places: HashMap::new(),
+            retired: HashMap::new(),
+            first_ruleset: None,
+            files: None,
+            sources_body: OnceLock::new(),
+        };
+        let policy = SourcePolicy::new(std::iter::empty()).unwrap();
+        let views = json!({"ops": [
+            {"op": "view_save", "view": {"title": "t", "display": "list", "group_by": "family"}},
+            {"op": "view_delete", "id": "t", "if_match": "sha256:0"},
+        ]});
+        assert!(authorize(&policy, &held, &views).is_ok());
+        let rule = json!({"ops": [{"op": "set", "id": "A-1", "patch": {}}]});
+        assert_eq!(
+            authorize(&policy, &held, &rule).unwrap_err().code,
+            "not_found"
+        );
     }
 
     #[test]

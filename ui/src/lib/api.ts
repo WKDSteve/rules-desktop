@@ -1,7 +1,7 @@
 // The hub's routes, as typed calls. Only the shapes the page needs. Every request carries the session as a bearer
 // token and nothing else: no cookie, no cache, no referrer.
 
-import type { NextId, Result, Rule, Rulesets, Snapshot, Waivers } from './contract';
+import type { Groupings, NextId, Result, Rule, Rulesets, Snapshot, Views, Waivers } from './contract';
 import type { OpsRequest } from './write';
 import { ApiError, failure, HubClient, textOf, type Hello, type SnapshotResult as KitSnapshotResult } from 'appkit-ui/client';
 
@@ -135,6 +135,16 @@ export class Hub extends HubClient<Snapshot> {
   /** The waivers of the project of this device; a 409 `no_project` when the person set none. */
   waivers(): Promise<Waivers> {
     return this.json<Waivers>(`${API}/waivers`);
+  }
+
+  /** The fields a view of the rules groups by, their values and how a drag between two groups is written. */
+  groupings(): Promise<Groupings> {
+    return this.json<Groupings>(`${API}/groupings`);
+  }
+
+  /** The saved views of the vault, and the files there that are no view. */
+  views(): Promise<Views> {
+    return this.json<Views>(`${API}/views`);
   }
 
   /** The rule sets that are loaded (an empty one too) and the ones in the archive of the vault. */

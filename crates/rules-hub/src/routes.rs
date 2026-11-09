@@ -46,6 +46,8 @@ pub const ROUTES: &[(&str, MakeRoute)] = &[
     ("ops", || post(crate::write::ops)),
     ("waivers", || get(crate::write::waivers)),
     ("rulesets", || get(crate::write::rulesets)),
+    ("groupings", || get(crate::write::groupings)),
+    ("views", || get(crate::write::views)),
     ("sources/class", || post(crate::policy::set_class)),
 ];
 
@@ -431,6 +433,8 @@ mod tests {
                 "ops",
                 "waivers",
                 "rulesets",
+                "groupings",
+                "views",
                 "sources/class"
             ]
         );

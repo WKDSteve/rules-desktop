@@ -25,6 +25,8 @@ const SNAPSHOT: &str = include_str!("fixtures/golden/snapshot.json");
 const RULE: &str = include_str!("fixtures/golden/rule.json");
 const ERROR: &str = include_str!("fixtures/golden/error.json");
 const NEXT_ID: &str = include_str!("fixtures/golden/next_id.json");
+const GROUPINGS: &str = include_str!("fixtures/golden/groupings.json");
+const VIEWS: &str = include_str!("fixtures/golden/views.json");
 const RESULT: &str = include_str!("fixtures/golden/result.json");
 const WAIVERS: &str = include_str!("fixtures/golden/waivers.json");
 const RULESETS: &str = include_str!("fixtures/golden/rulesets.json");
@@ -121,6 +123,8 @@ impl Engine for FakeEngine {
                 "next_id" => NEXT_ID.trim_end().to_owned(),
                 "waivers" => WAIVERS.trim_end().to_owned(),
                 "rulesets" => RULESETS.trim_end().to_owned(),
+                "groupings" => GROUPINGS.trim_end().to_owned(),
+                "views" => VIEWS.trim_end().to_owned(),
                 "ops" => self.ops.lock().unwrap().clone(),
                 other => panic!("the fake engine was asked {other}"),
             };
