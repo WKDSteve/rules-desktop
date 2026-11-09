@@ -65,6 +65,7 @@ away that held something back, a default where there was none) is asked first; "
 | --- | --- |
 | Overview | Counters, the split by severity, and the findings: what the engine could not load, gate families that have no rule, files without a class, retired rules. |
 | Families | One row per family with its counters; a row opens the list narrowed to it. |
+| Views | A saved view of the rules: grouped by family, severity, status (active or retired), waiver or the section of a layout, drawn as columns, a list that folds, or a matrix of two fields, and narrowed to its selection. A rule dragged to another group (the mouse, a finger by its grip, or `Shift` with `h` `l`; in a matrix the rules of an opened cell, also with `j` `k`) writes that field: the severity, a retire or a reinstate, the move of its line into that section. The family and the waiver are not written. Make, rename, fold and delete a view; it is a file of the vault (`views/<name>.md`), the same on every machine. Undo as everywhere. |
 | Coverage | Per family and per gate: how many rules have a check that runs by itself, only a question for an agent, or are manual. A row opens the list of its family (a gate, of its families). |
 | Waivers | The waivers of the project of this device: rule, reason, last day, paths, and whether a waiver has expired or is for a rule that is not loaded. Waive, renew (a new last day or none) and remove, with Undo. Needs `project` (below). |
 | Sources | The rule sets of the vault (make one, archive one, bring one back) and the data classes of this device (`sources.json`): the keys with class and number of files, the default, and the files that have no class. Set, take away or add a class; a change that releases more is asked first. |
@@ -75,7 +76,7 @@ the machine the hub runs on), the version of its file, and its check and agent q
 run. The page follows the rule files: when one changes on disk, the list changes by itself, and a window that gets the
 focus back asks for a scan.
 
-Keys: `g h`, `g f`, `g c`, `g w`, `g s`, `g l` switch the view; `j` and `k` move; `Enter` opens; `/` goes to the search; `Esc` closes;
+Keys: `g h`, `g f`, `g v`, `g c`, `g w`, `g s`, `g l` switch the view; `j` and `k` move; `Enter` opens; `/` goes to the search; `Esc` closes;
 `Ctrl+K` opens the palette (actions and rules in one box). The single keys can be switched off in the Help menu.
 Back and Forward of the browser walk through the views and the rules you opened. Language (English, German) and colours (as the system, light, dark) are in the menus; both are remembered in the browser.
 

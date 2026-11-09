@@ -35,6 +35,22 @@ Coverage counts, per family and per gate, the rules with a check that runs by it
 agent, and the manual ones. A gate is a list of families in the configuration; its row sums the rules of those families
 and names the families that match no rule. A row opens the list. The page runs no check: that is for docmap-desktop.
 
+## 3b. Look at the rules another way: Views (`g v`)
+
+A view groups the rules by one field the engine names (family, severity, status, waiver, or the sections of a layout)
+and draws them as columns, as a list of sections that fold, or as a matrix of two fields with a count in each cell.
+**New view** makes one (a title, how it is drawn, the field); it is a file of the vault, so it is the same on every
+machine. Rename it, fold a group (that is kept in the file too), or delete it after a question.
+
+Dragging a rule to another group writes the field: another severity, a retire (onto *retired*) or a reinstate (back onto
+*active*), or the move of its line into another section of the layout. `Shift` with `h` or `l` moves the rule under the
+cursor to the group before or after; in a matrix, open a cell and move its rules with `Shift` and `h` `l` `j` `k` (one
+field at a time). The family (part of the id) and the waiver (from the project) are not written by a drag, and the page
+says so. Every change goes on the version shown and has its Undo.
+
+A view changed on another machine shows when the tab is opened again or a rule changes: the views send no event of
+their own.
+
 ## 4. Find a rule (`g l`)
 
 - Filter by family, severity and kind of check (a rule without a check is its own entry).
