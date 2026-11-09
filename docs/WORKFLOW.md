@@ -48,6 +48,9 @@ cursor to the group before or after; in a matrix, open a cell and move its rules
 field at a time). The family (part of the id) and the waiver (from the project) are not written by a drag, and the page
 says so. Every change goes on the version shown and has its Undo.
 
+A right click on a family (in Families) or a rule set (in Sources), or the menu key or `Shift`+`F10` on it, offers
+**Open as a view**: its rules grouped by a field, in the tab Views, saved nowhere until **Save as a view**.
+
 A view changed on another machine shows when the tab is opened again or a rule changes: the views send no event of
 their own.
 

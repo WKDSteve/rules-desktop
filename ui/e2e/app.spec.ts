@@ -830,6 +830,33 @@ test('a rule dragged to another group of a view, or moved with Shift and a key, 
   for (const slug of ['severity-drag-e2e', 'status-drag-e2e', 'family-drag-e2e']) rmSync(join(vault, 'views', `${slug}.md`), { force: true });
 });
 
+test('a family opened as a view from its context menu shows its rules grouped, writes nothing, and is saved on request', async ({ page }) => {
+  await pair(page);
+  const vault = state().vault;
+  const file = join(vault, 'views', 'wr.md');
+  rmSync(file, { force: true });
+  await view(page, 'Families');
+  const row = page.getByRole('row').filter({ has: page.getByRole('button', { name: 'WR', exact: true }) });
+  await row.click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: 'Context menu' });
+  await expect(menu).toBeVisible();
+  await expectAccessible(page, 'the context menu of a family');
+  await menu.getByRole('menuitem', { name: 'Grouped by Severity' }).click();
+
+  const tab = page.getByRole('region', { name: 'Views', exact: true });
+  await expect(tab.getByRole('status').filter({ hasText: 'The rules of WR, not saved as a view.' })).toBeVisible();
+  await expect(tab.locator('[data-group] [data-view-item="WR-03"]')).toBeVisible();
+  // Only the rules of the family, and nothing written.
+  await expect(tab.locator('[data-view-item]:not([data-view-item^="WR-"])')).toHaveCount(0);
+  expect(existsSync(file)).toBe(false);
+
+  await tab.getByRole('button', { name: 'Save as a view' }).click();
+  await expect.poll(() => existsSync(file)).toBe(true);
+  expect(readFileSync(file, 'utf8')).toMatch(/^sel_families: \[?WR\]?$/m);
+  await expect(tab.getByLabel('View', { exact: true })).toHaveValue('wr');
+  rmSync(file, { force: true });
+});
+
 test('a rule set is made, moved to the archive and brought back, and nothing is deleted', async ({ page }) => {
   await pair(page);
   const vault = state().vault;

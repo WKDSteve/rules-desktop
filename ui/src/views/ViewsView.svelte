@@ -38,7 +38,11 @@
 
   const views = $derived(app.savedViews?.views ?? []);
   const problems = $derived(app.savedViews?.problems ?? []);
-  const current = $derived<SavedView | null>(views.find((v) => v.id === app.viewId) ?? views[0] ?? null);
+  const saved = $derived<SavedView | null>(views.find((v) => v.id === app.viewId) ?? views[0] ?? null);
+  // A view opened from the context menu is shown as a saved one is, without a file (nothing to rename or delete).
+  const current = $derived<SavedView | null>(
+    app.transientView ? { ...app.transientView, id: '', etag: '' } : saved,
+  );
   const ctx = $derived({ waivers: waiversOf(app.waivers) });
   const read = (item: Item, grouping: Grouping) => valuesOf(item, grouping, ctx);
   const items = $derived(current ? selected(itemsOf(app.snapshot), current.select) : []);
@@ -95,6 +99,17 @@
       // The engine named the file (a title that is taken gets -2, -3): the view it made is the one shown.
       app.viewId = outcome.ids[0] ?? null;
       title = '';
+    }
+  }
+
+  /** The view opened from the context menu becomes a file of the vault, and is shown as that. */
+  async function saveTransient(): Promise<void> {
+    const def = app.transientView;
+    if (!def) return;
+    const outcome = await app.write([viewSaveOp(def)]);
+    if (outcome && outcome.saved > 0) {
+      app.transientView = null;
+      app.viewId = outcome.ids[0] ?? null;
     }
   }
 
@@ -221,10 +236,25 @@
       {#if views.length > 0}
         <label>
           <span id="views-which">{t('views.which')}</span>
-          <select aria-labelledby="views-which" value={current?.id ?? ''} onchange={(e) => (app.viewId = e.currentTarget.value)}>
+          <select
+            aria-labelledby="views-which"
+            value={app.transientView ? '' : (saved?.id ?? '')}
+            onchange={(e) => {
+              app.transientView = null;
+              app.viewId = e.currentTarget.value;
+            }}
+          >
+            {#if app.transientView}<option value="">{t('views.transient')}</option>{/if}
             {#each views as v (v.id)}<option value={v.id}>{v.title}</option>{/each}
           </select>
         </label>
+      {/if}
+      {#if app.transientView}
+        <p class="transient" role="status">
+          <span>{t('views.transient.note', { title: app.transientView.title })}</span>
+          <button type="button" disabled={app.writing} onclick={() => void saveTransient()}>{t('views.transient.save')}</button>
+        </p>
+      {:else if views.length > 0}
         <form class="inline" onsubmit={(e) => (e.preventDefault(), void rename())}>
           <label>
             <span>{t('views.rename')}</span>
@@ -363,6 +393,13 @@
     display: grid;
     gap: 0.15rem;
     font-size: 0.85rem;
+  }
+  .transient {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
   }
   .muted {
     margin: 0;

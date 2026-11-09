@@ -4,7 +4,9 @@
   // hub writes sources.json itself, in the config folder; the vault is not touched. A rule set with no class is
   // shown, not released and not written.
   import type { ClassChange, DataClass } from '../lib/api';
+  import { contextTarget } from 'appkit-ui/contextmenu';
   import type { App } from '../lib/app.svelte';
+  import { selectionTarget } from '../lib/context';
   import { translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
   import { classLabel } from '../lib/sources';
@@ -106,7 +108,7 @@
         </thead>
         <tbody>
           {#each app.rulesets.items as item (item.folder)}
-            <tr id={`ruleset-${item.folder}`}>
+            <tr id={`ruleset-${item.folder}`} use:contextTarget={selectionTarget(item.name, { rulesets: [item.name] })}>
               <th scope="row"><code>{shownText(item.name)}</code></th>
               <td>{filesOf(item.name)}</td>
               <td>

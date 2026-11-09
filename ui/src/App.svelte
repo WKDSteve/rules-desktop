@@ -28,6 +28,8 @@
   import Toast from './views/Toast.svelte';
   import Waivers from './views/Waivers.svelte';
   import ViewsView from './views/ViewsView.svelte';
+  import ContextMenu from 'appkit-ui/ContextMenu.svelte';
+  import { createContextRegistry } from './lib/context';
 
   let { app, code = null }: { app: App; code?: string | null } = $props();
 
@@ -73,6 +75,8 @@
     else document.documentElement.dataset['theme'] = app.theme;
     document.title = t('app.title');
   });
+
+  const contextRegistry = $derived(createContextRegistry(app));
 
   const menus = $derived<Menu[]>([
     {
@@ -258,6 +262,8 @@
       {/if}
     </div>
   {/if}
+  <!-- Inside the main landmark: the menu belongs to what is under the pointer, which is content. -->
+  {#if app.phase === 'ready'}<ContextMenu registry={contextRegistry} label={t('ctx.label')} />{/if}
 </main>
 
 {#if app.phase === 'ready'}

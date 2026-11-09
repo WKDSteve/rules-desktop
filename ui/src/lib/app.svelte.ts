@@ -8,7 +8,7 @@ import { Preferences, StreamSession } from 'appkit-ui/session';
 import type { SseMessage } from 'appkit-ui/sse';
 import { ApiError, type ClassChange, type Hub, type HubSources } from './api';
 import type { Groupings, Rule, RuleSummary, Rulesets, Snapshot, Views, Waivers } from './contract';
-import { isViewOp } from './views';
+import { isViewOp, type ViewDef } from './views';
 import { familyRows, type FamilyRow } from './families';
 import { applyFilter, emptyFilter, moveSelection, type Filter } from './filter';
 import { LANGS, type Key, type Lang } from './i18n';
@@ -954,6 +954,14 @@ export class App {
   viewsState = $state<'idle' | 'ready' | 'failed'>('idle');
   /** The saved view shown in the tab, by id; `null`: the first one. */
   viewId = $state<string | null>(null);
+  /** A view opened from the context menu (a family, a rule set) and not saved: shown until a saved one is chosen. */
+  transientView = $state.raw<ViewDef | null>(null);
+
+  /** Show a selection of rules grouped by a field in the tab Views, without writing anything. */
+  openTransientView(def: ViewDef): void {
+    this.transientView = def;
+    this.setView('views');
+  }
 
   /**
    * Read the fields and the saved views again (and the waivers, which a view can group by). A change of a view sends

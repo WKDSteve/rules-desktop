@@ -1,7 +1,9 @@
 <script lang="ts">
   // The families with their counters. A row opens the list narrowed to that family (click or Enter); j and k move
   // the cursor. The counts are the engine's: the page only adds them up.
+  import { contextTarget } from 'appkit-ui/contextmenu';
   import type { App } from '../lib/app.svelte';
+  import { selectionTarget } from '../lib/context';
   import { familyTotals } from '../lib/families';
   import { translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
@@ -26,7 +28,11 @@
     </thead>
     <tbody>
       {#each app.families as row (row.family)}
-        <tr class:cursor={app.selectedFamily === row.family} aria-selected={app.selectedFamily === row.family}>
+        <tr
+          class:cursor={app.selectedFamily === row.family}
+          aria-selected={app.selectedFamily === row.family}
+          use:contextTarget={selectionTarget(row.family, { families: [row.family] })}
+        >
           <th scope="row">
             <button
               type="button"
