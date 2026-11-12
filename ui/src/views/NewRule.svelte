@@ -47,6 +47,12 @@
     if (!dialog) return;
     if (open && !dialog.open) {
       reset();
+      // An intent opened the form: its finding is the start of the title and the text, taken once
+      if (app.newRulePrefill) {
+        title = app.newRulePrefill.title;
+        text = app.newRulePrefill.text;
+        app.newRulePrefill = null;
+      }
       dialog.showModal();
       familyInput?.focus();
     }

@@ -6,6 +6,7 @@ import { takePairingCode, type HistoryLike, type LocationLike } from 'appkit-ui/
 import type { Route } from 'appkit-ui/route';
 import { Preferences, StreamSession } from 'appkit-ui/session';
 import type { SseMessage } from 'appkit-ui/sse';
+import { readIntent } from './intent';
 import { ApiError, type ClassChange, type Hub, type HubSources } from './api';
 import type { Groupings, Rule, RuleSummary, Rulesets, Snapshot, Views, Waivers } from './contract';
 import { isViewOp, type ViewDef } from './views';
@@ -984,8 +985,31 @@ export class App {
   /** The dialog for a new rule is open. */
   newRuleOpen = $state(false);
 
-  openNewRule(): void {
-    if (this.phase === 'ready') this.newRuleOpen = true;
+  /** What the form of a new rule starts with when it opens from an intent; the form takes it once. */
+  newRulePrefill = $state.raw<{ title: string; text: string } | null>(null);
+
+  openNewRule(prefill: { title: string; text: string } | null = null): void {
+    if (this.phase !== 'ready') return;
+    this.newRulePrefill = prefill;
+    this.newRuleOpen = true;
+  }
+
+  /**
+   * Take an intent a person pasted or opened from a file (`wkd-intent/1`, see `intent.ts`): `rules.show` opens the rule
+   * in its view, `rules.new` opens the form filled in. Nothing is written; a refused intent names every reason.
+   * @returns the reasons it was refused, empty when it was taken
+   */
+  takeIntent(raw: string): string[] {
+    const read = readIntent(raw);
+    if (!read.ok) return read.problems;
+    if (this.phase !== 'ready') return ['the hub is not connected yet'];
+    if (read.intent.action === 'rules.show') {
+      this.setView('rules');
+      void this.openDetail(read.intent.id);
+    } else {
+      this.openNewRule({ title: read.intent.title, text: read.intent.text });
+    }
+    return [];
   }
 
   closeNewRule(): void {

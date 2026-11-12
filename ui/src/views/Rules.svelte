@@ -12,6 +12,10 @@
   import { classLabel } from '../lib/sources';
 
   let { app }: { app: App } = $props();
+
+  // The intent field: what was pasted, and why the last try was refused
+  let intentText = $state('');
+  let intentProblems = $state<string[]>([]);
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
 
   let search: HTMLInputElement | undefined = $state();
@@ -55,6 +59,25 @@
 <section aria-labelledby="rules-h">
   <h2 id="rules-h">{t('nav.rules')}</h2>
   <button type="button" class="new" onclick={() => app.openNewRule()}>{t('new.open')}</button>
+
+  <details class="intent">
+    <summary>{t('intent.title')}</summary>
+    <p>{t('intent.hint')}</p>
+    <textarea rows="4" aria-label={t('intent.title')} bind:value={intentText}></textarea>
+    <button
+      type="button"
+      onclick={() => {
+        intentProblems = app.takeIntent(intentText);
+        if (intentProblems.length === 0) intentText = '';
+      }}>{t('intent.take')}</button
+    >
+    {#if intentProblems.length > 0}
+      <p role="alert">{t('intent.refused')}</p>
+      <ul>
+        {#each intentProblems as problem (problem)}<li>{problem}</li>{/each}
+      </ul>
+    {/if}
+  </details>
 
   <div class="bar" role="group" aria-label={t('filter.label')}>
     <MultiSelect

@@ -140,6 +140,10 @@ const en = {
   'retired.reinstate': 'Reinstate',
   'palette.new': 'New rule …',
   'new.open': 'New rule …',
+  'intent.title': 'Insert an intent',
+  'intent.hint': 'Paste an intent (wkd-intent/1) from another app. It opens a rule or the form of a new one; nothing is written.',
+  'intent.take': 'Take',
+  'intent.refused': 'Not taken:',
   'new.label': 'New rule',
   'float.move': 'Move or resize the window',
   'hint.float.move':
@@ -452,6 +456,10 @@ const de: Record<Key, string> = {
   'retired.reinstate': 'Wieder einsetzen',
   'palette.new': 'Neue Regel …',
   'new.open': 'Neue Regel …',
+  'intent.title': 'Absicht einfügen',
+  'intent.hint': 'Eine Absicht (wkd-intent/1) aus einer anderen App einfügen. Sie öffnet eine Regel oder das Formular für eine neue; es wird nichts geschrieben.',
+  'intent.take': 'Übernehmen',
+  'intent.refused': 'Nicht übernommen:',
   'new.label': 'Neue Regel',
   'float.move': 'Fenster verschieben oder Größe ändern',
   'hint.float.move':
