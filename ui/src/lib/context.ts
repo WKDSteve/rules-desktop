@@ -16,6 +16,20 @@ export function selectionTarget(title: string, select: Partial<SavedView['select
   return { kind: 'selection', id: title, data: { title, select: { ...EVERY, ...select } } };
 }
 
+/** One rule row: what the menu offers is the rule's id, never its text. */
+export function ruleTarget(id: string): ContextTarget {
+  return { kind: 'rule', id, data: { id } };
+}
+
+/** Put the id on the clipboard; a browser that refuses (no permission, no secure context) is not an error here. */
+async function copyId(id: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(id);
+  } catch {
+    // the menu entry simply does nothing: the id is also in the row
+  }
+}
+
 export function createContextRegistry(app: App): ContextRegistry {
   const registry = new ContextRegistry();
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
@@ -33,6 +47,15 @@ export function createContextRegistry(app: App): ContextRegistry {
       });
     }
     return items;
+  });
+
+  registry.provide('rule', (target) => {
+    const id = (target.data as { id: string }).id;
+    return [
+      { kind: 'action', label: t('ctx.rule.open'), onselect: () => void app.openDetail(id) },
+      { kind: 'action', label: t('ctx.rule.editor'), onselect: () => void app.openInEditor(id) },
+      { kind: 'action', label: t('ctx.rule.copy'), onselect: () => void copyId(id) },
+    ];
   });
 
   return registry;

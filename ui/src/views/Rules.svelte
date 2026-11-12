@@ -4,6 +4,8 @@
   import MultiSelect from 'appkit-ui/MultiSelect.svelte';
   import { TIP_ID } from 'appkit-ui/tooltip';
   import type { App } from '../lib/app.svelte';
+  import { contextTarget } from 'appkit-ui/contextmenu';
+  import { ruleTarget } from '../lib/context';
   import { checkKindOf, checkKindsOf, familiesOf, isActive, NO_CHECK, SEVERITIES } from '../lib/filter';
   import { labelOf, translate, type Key } from '../lib/i18n';
   import { shownText, titleText } from '../lib/ruletext';
@@ -157,7 +159,7 @@
       <tbody>
         {#each shown as rule (rule.id)}
           {@const cls = app.classOfRule(rule)}
-          <tr id={`rule-${rule.id}`} class:cursor={app.selectedId === rule.id} aria-selected={app.selectedId === rule.id}>
+          <tr id={`rule-${rule.id}`} use:contextTarget={ruleTarget(rule.id)} class:cursor={app.selectedId === rule.id} aria-selected={app.selectedId === rule.id}>
             <td>
               <input
                 type="checkbox"
