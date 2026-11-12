@@ -32,7 +32,8 @@ The first `open` prints a link `http://127.0.0.1:17616/#pair=...`. The page take
 trades it for a session and keeps the session in that tab only. A second tab needs a second `open`. The port is 17616
 (`RULES_DESKTOP_PORT`, `--port`, or `port` in `config.json`); when it is taken the hub says so and uses a free one.
 
-`rules-hub install [--autostart] [--shortcut]` copies the program to a fixed place; `autostart on|off|status` starts the
+`rules-hub install [--autostart] [--shortcut]` copies the program to a fixed place and ends with the call that starts
+it and whether its folder is on `PATH`; `autostart on|off|status` starts the
 hub with your login, and the Help menu of the page has the same switch; nothing registers it by itself; `uninstall [--purge-settings]` takes all of that away again (`scripts/uninstall.ps1` or
 `scripts/uninstall.sh` then removes the program file).
 

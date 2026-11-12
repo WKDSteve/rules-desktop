@@ -118,7 +118,8 @@ one, and PowerShell refuses it as unsigned ("is not digitally signed"): run `Unb
 
 They download the program of that build, check it against its `SHA256SUMS` (a wrong or missing checksum installs
 nothing), and hand over to `rules-hub install`, which replaces the program in one step and brings a running hub
-back. The installation that is there is found and replaced, never a second one beside it: the script of `latest` run
+back. It ends with the whole call that starts it (`start it: "...\bin\rules-hub.exe" start --open`) and says whether
+that folder is on `PATH` (install does not add it there; the Start menu entry starts it too). The installation that is there is found and replaced, never a second one beside it: the script of `latest` run
 again updates to the newest rolling build, the script of a release run again repairs that release (to update, take
 the script of the newer release, or pass `-Version`/`-Rolling`). To pass arguments, add them to the call:
 `& "$env:TEMP\install.ps1" -InstallArgs '--shortcut'` adds a link. Nothing registers the hub with your login by itself: the Help menu of the page has a switch, as has `rules-hub autostart on|off`.
