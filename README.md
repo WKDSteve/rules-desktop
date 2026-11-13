@@ -173,3 +173,18 @@ not committed (`[patch."https://github.com/WKDSteve/appkit"]`). That rewrites `C
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+<!-- connections:begin (written by the app-icons tool of the workshop; change integrations.json there, not this block) -->
+## Connections
+
+![rules-desktop: what it uses and what uses it](assets/graphs/rules-desktop.png)
+
+**Uses**
+
+- [appkit](https://github.com/WKDSteve/appkit): rules-desktop is built on appkit: guard, pairing and install (`appkit-core`, `appkit-hub`) and the page kit (`appkit-ui`). ([picture](assets/graphs/pair/rules-desktop--appkit.png))
+- [rules.nvim](https://github.com/WKDSteve/rules.nvim): rules-desktop talks to rules.nvim as its engine (`rules-export/1`, `rules-ops/1`), pinned in `engine.lock`; the app never writes a rule itself. ([picture](assets/graphs/pair/rules-desktop--rules.nvim.png))
+
+**Used by**
+
+- [hub-desktop](https://github.com/WKDSteve/hub-desktop): hub-desktop shows rules-desktop as a tile and starts it, native or as a web app. ([picture](assets/graphs/pair/hub-desktop--rules-desktop.png))
+<!-- connections:end -->
