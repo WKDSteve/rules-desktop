@@ -2,6 +2,8 @@
 
 # rules-desktop
 
+[![wkd](https://img.shields.io/badge/wkd-family-c6ff3d)](https://wkdsteve.github.io/wkd/apps/rules-desktop/)
+
 A local web UI and desktop app for the rule set of [rules.nvim](https://github.com/WKDSteve/rules.nvim):
 browse the rules, search them, and later create, change, retire and move them, in the browser first and as a small
 native app after that. The sibling of [tasks-desktop](https://github.com/WKDSteve/tasks-desktop), built on the same
