@@ -40,7 +40,7 @@ dependencies = [
 [[package]]
 name = "appkit-core"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.47.0#22039af47757bb4ba69770600fc647cd304d3b30"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.50.1#865e2067aa88562dd3451b4123082ba63b6557e3"
 dependencies = [
  "getrandom",
  "serde",
@@ -52,7 +52,7 @@ dependencies = [
 [[package]]
 name = "appkit-hub"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.47.0#22039af47757bb4ba69770600fc647cd304d3b30"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.50.1#865e2067aa88562dd3451b4123082ba63b6557e3"
 dependencies = [
  "aes-gcm",
  "appkit-core",
@@ -74,7 +74,7 @@ dependencies = [
 [[package]]
 name = "appkit-scratch"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.47.0#22039af47757bb4ba69770600fc647cd304d3b30"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.50.1#865e2067aa88562dd3451b4123082ba63b6557e3"
 dependencies = [
  "tempfile",
 ]
@@ -82,7 +82,7 @@ dependencies = [
 [[package]]
 name = "appkit-testkit"
 version = "0.0.0"
-source = "git+https://github.com/WKDSteve/appkit?tag=v0.47.0#22039af47757bb4ba69770600fc647cd304d3b30"
+source = "git+https://github.com/WKDSteve/appkit?tag=v0.50.1#865e2067aa88562dd3451b4123082ba63b6557e3"
 dependencies = [
  "appkit-core",
  "appkit-hub",
