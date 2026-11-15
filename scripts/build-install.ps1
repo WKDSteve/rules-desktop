@@ -83,14 +83,16 @@ try {
     Invoke-Step 'cargo build --release --locked -p rules-hub' { cargo build --release --locked -p rules-hub }
 
     $exe = Join-Path $root 'target\release\rules-hub.exe'
-    $version = (& $exe --version)
+    # Piped, so PowerShell waits: the release build is a window program, and `$x = (& $exe ...)` alone does not
+    # wait for one (it closes the pipe and leaves $LASTEXITCODE unset).
+    $version = (& $exe --version | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) { Exit-Build 'the program built does not run' }
     Write-Output "built $version ($exe)"
     if ($BuildOnly) { return }
 
     # `install` copies the program to its fixed place (%LOCALAPPDATA%\rules-desktop\bin).
     $label = (@('rules-hub', 'install') + $InstallArgs) -join ' '
-    Invoke-Step $label { & $exe install @InstallArgs }
+    Invoke-Step $label { & $exe install @InstallArgs | Out-Host }
     Write-Output "installed $version"
 }
 finally {

@@ -83,6 +83,10 @@ jobs:
           New-Item -ItemType Directory -Path $dir -ErrorAction Stop | Out-Null
           "TEMP=$dir", "TMP=$dir", "TMPDIR=$dir", "JOB_TEMP=$dir" | Add-Content -Path $env:GITHUB_ENV
       - run: cargo test --workspace --locked
+      # The release build is a window program (no console window for the link, the login entry or a double click); a
+      # debug build stays a console program, so only a release test run proves the attribute.
+      - name: The release build is a window program
+        run: cargo test --release --locked -p rules-hub --test window_program
       # No test left a folder in the temp dir of this job (a test makes its folder with `Scratch`, which removes it
       # also after a failure). Strict: whatever name a test gave its folder counts; `nvim` and `nvim.0` are what the
       # real Neovim of the engine tests may make itself.

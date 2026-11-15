@@ -1,6 +1,12 @@
 //! `rules-hub serve | start | stop | open | autostart | install | uninstall | --version`;
 //! without an argument (a double click) it starts the hub in the background and opens the browser.
+//!
+//! The release build is a window program (appkit `docs/PROCESSES.md`, "A hub is a window program"): Windows
+//! opens no console window for the link, the login entry or a double click, and from a terminal it attaches to
+//! the terminal's console. A debug build stays a console program.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use appkit_core::console::{self, Console};
 use rules_hub::app::{self, ServeOptions};
 use rules_hub::background::{self, Autostart, InstallOptions, UninstallOptions};
 
@@ -132,11 +138,16 @@ async fn run(args: Vec<String>) -> Result<(), String> {
 
 #[tokio::main]
 async fn main() {
+    // Before the first line is written.
+    let console = console::attach_parent();
+    console::report_panics("rules-hub");
     let args: Vec<String> = std::env::args().skip(1).collect();
     let by_click = args.is_empty();
     if let Err(message) = Box::pin(run(args)).await {
-        eprintln!("rules-hub: {message}");
-        if by_click {
+        // stderr, or a message box when nobody reads it (the link of a window program).
+        console::report("rules-hub", &message);
+        // In the console of a terminal the shell reads the same keys: only a console of its own waits.
+        if by_click && console == Console::Own {
             wait_for_enter();
         }
         std::process::exit(1);

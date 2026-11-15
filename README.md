@@ -82,6 +82,12 @@ rules-hub install [--autostart] [--shortcut]
 rules-hub uninstall [--purge-settings]
 ```
 
+Without an argument (a double click, the link in the Start menu) it starts the hub in the background and opens
+the browser. The program of a rolling build or a release is a window program: a double click, the link and the
+login entry open no console window, and an error shows in a message box (a debug build is a console program).
+From a terminal it writes its output there, but the prompt comes back at once (the shell does not wait for a
+window program); a script that needs the output or the exit code pipes it, `(& rules-hub --version | Out-String).Trim()`.
+
 To install it for your user without administrator rights, see [Install](#install) below.
 
 It needs a Neovim (0.12 or newer), a rules.nvim checkout and the rules vault: `RULES_NVIM`,
