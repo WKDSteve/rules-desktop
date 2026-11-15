@@ -1135,7 +1135,7 @@ describe('the list of rule sets follows the snapshot', () => {
 });
 
 describe('the start at login', () => {
-  it('is read once for the page, and the notice says what the system answered', async () => {
+  it('is read once for the page and again on the focus, and the notice says what the system answered', async () => {
     const s = setup();
     const hub = s.env.hub;
     let reads = 0;
@@ -1149,10 +1149,19 @@ describe('the start at login', () => {
     // A fresh snapshot reads the sources again; that is no reason to run reg.exe again.
     await (s.app as unknown as { readSources(): Promise<void> }).readSources();
     expect(reads).toBe(1);
+    // Switched in hub-desktop meanwhile: the window that gets the focus back reads it again.
+    hub.autostart = async () => {
+      reads += 1;
+      return true;
+    };
+    await s.app.focused();
+    await vi.waitFor(() => expect(s.app.autostart).toBe(true));
+    expect(reads).toBe(2);
 
+    hub.setAutostart = async (on: boolean) => on;
     await s.app.toggleAutostart();
-    expect(s.app.autostart).toBe(true);
-    expect(s.app.notice?.key).toBe('notice.autostart_on');
+    expect(s.app.autostart).toBe(false);
+    expect(s.app.notice?.key).toBe('notice.autostart_off');
 
     // Written, but the system does not say so: no word of success, and no switch either.
     hub.setAutostart = async () => null;

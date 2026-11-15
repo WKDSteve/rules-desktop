@@ -1,10 +1,13 @@
-//! The entry that starts the hub at login, as the settings of the page see it: its state, on and off. Nothing registers it
-//! by itself; the person does, here or with `rules-hub autostart on|off`. An entry that is there stays until they take it
-//! away (an update does not touch it). It names the installed copy, whichever copy of the program is running.
+//! The start of the hub with the login, as the settings of the page see it: its state, on and off. Nothing registers it
+//! by itself; the person does, here, with `rules-hub autostart on|off` or with the switch of its tile in hub-desktop:
+//! all three read and switch the one state of the kit (`appkit_hub::loginstate`: the hub's own login entry, or
+//! `start_with_hub` of hub-desktop while hub-desktop starts with the login). An entry that is there stays until they take
+//! it away (an update does not touch it). Its own entry names the installed copy, whichever copy of the program is
+//! running.
 
 use std::path::{Path, PathBuf};
 
-use crate::background::{self, Autostart};
+use crate::background;
 use appkit_hub::config::Env;
 
 /// The login entry of this hub. The program has [`SystemLoginEntry`]; a test has one that holds a value.
@@ -25,16 +28,26 @@ pub struct SystemLoginEntry;
 
 impl LoginEntry for SystemLoginEntry {
     fn is_on(&self) -> Option<bool> {
-        appkit_hub::background::autostart_of(&crate::IDENTITY)
+        appkit_hub::loginstate::is_on(
+            &crate::IDENTITY,
+            &Env::from_process(),
+            &appkit_hub::loginstate::SystemLogin,
+        )
     }
 
     fn set(&self, on: bool) -> Result<(), String> {
-        if !on {
-            return background::autostart(Autostart::Off).map(|_| ());
-        }
-        let program = background::installed_program(&Env::from_process())?;
-        background::autostart_for(Autostart::On, &to_register(&program, program.is_file())?)
-            .map(|_| ())
+        let env = Env::from_process();
+        appkit_hub::loginstate::set(
+            &crate::IDENTITY,
+            on,
+            || {
+                let program = background::installed_program(&env)?;
+                to_register(&program, program.is_file())
+            },
+            &env,
+            &appkit_hub::loginstate::SystemLogin,
+        )
+        .map(|_| ())
     }
 }
 

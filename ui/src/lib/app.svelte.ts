@@ -464,10 +464,14 @@ export class App {
     }
   }
 
-  /** Once per page: each read starts a program on the machine of the hub, and the entry changes only through the switch. */
+  /**
+   * Once per page, and again when the window gets the focus back (`again`, as often as the scan then): each read starts a
+   * program on the machine of the hub, and besides the switch here only the tile of hub-desktop changes the state, which
+   * is in another window.
+   */
   #autostartRead = false;
-  private async readAutostart(): Promise<void> {
-    if (this.#autostartRead) return;
+  private async readAutostart(again = false): Promise<void> {
+    if (this.#autostartRead && !again) return;
     this.#autostartRead = true;
     try {
       this.autostart = await this.env.hub.autostart();
@@ -585,6 +589,8 @@ export class App {
     const now = this.env.now();
     if (now - this.lastRescan < RESCAN_EVERY_MS) return;
     this.lastRescan = now;
+    // hub-desktop can switch the start at login too: the menu shows what is true now.
+    if (this.autostart !== null) void this.readAutostart(true);
     try {
       await this.env.hub.rescan();
     } catch {

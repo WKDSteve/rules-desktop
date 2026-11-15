@@ -130,7 +130,7 @@ back. It ends with the whole call that starts it (`start it: "...\bin\rules-hub.
 that folder is on `PATH` (install does not add it there; the Start menu entry starts it too). The installation that is there is found and replaced, never a second one beside it: the script of `latest` run
 again updates to the newest rolling build, the script of a release run again repairs that release (to update, take
 the script of the newer release, or pass `-Version`/`-Rolling`). To pass arguments, add them to the call:
-`& "$env:TEMP\install.ps1" -InstallArgs '--shortcut'` adds a link. Nothing registers the hub with your login by itself: the Help menu of the page has a switch, as has `rules-hub autostart on|off`.
+`& "$env:TEMP\install.ps1" -InstallArgs '--shortcut'` adds a link. Nothing registers the hub with your login by itself: the Help menu of the page has a switch, as have `rules-hub autostart on|off` and the tile of hub-desktop. All three show the same state: while hub-desktop starts with your login it starts the hub (`start_with_hub`), otherwise the hub's own login entry does.
 `-File FILE` installs from a file you already have, with `-Sums FILE` or `-Sha256 HEX`. Through
 `powershell -File` an array arrives as one string, so a saved `install.ps1` takes one `-InstallArgs` value there; in a
 PowerShell session a list is fine. The install
