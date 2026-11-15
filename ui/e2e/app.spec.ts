@@ -282,6 +282,9 @@ test('German, the dark theme and the palette', async ({ page }) => {
 
 for (const scheme of ['light', 'dark'] as const) {
   test(`no accessibility violation in ${scheme}: every view and the detail`, async ({ page }) => {
+    // Eight runs of axe in one test: 15 to 20 s on an idle machine, past the 30 s of a test on a busy runner
+    // (axe was still analysing when the time ran out; nothing was waiting on the page).
+    test.slow();
     await page.emulateMedia({ colorScheme: scheme });
     await pair(page);
     await expectAccessible(page, `overview ${scheme}`);
