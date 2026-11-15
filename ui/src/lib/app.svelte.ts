@@ -816,6 +816,8 @@ export class App {
 
   /** A request is on its way: the page does not send a second one beside it. */
   writing = $state(false);
+  /** Settles when the write on its way has read its result back (`writing` is false again). */
+  private written: Promise<unknown> = Promise.resolve();
   /** The operations that met another version of the file, first first: the conflict center shows them; nothing was written. */
   conflicts = $state.raw<Conflict[]>([]);
   /** The rule as the file has it now, for the first conflict (read when the conflict arrived). */
@@ -1036,8 +1038,27 @@ export class App {
    * (`if_match`), so that nothing is written over a change made since. Returns what came of it, or `null` when the
    * hub refused the whole request (told in a notice).
    */
-  async write(ops: Op[], options: { dryRun?: boolean; undoable?: boolean } = {}): Promise<Outcome | null> {
-    if (this.phase !== 'ready' || this.writing || ops.length === 0) return null;
+  write(ops: Op[], options: { dryRun?: boolean; undoable?: boolean } = {}): Promise<Outcome | null> {
+    if (this.phase !== 'ready' || this.writing || ops.length === 0) return Promise.resolve(null);
+    const run = this.send(ops, options);
+    this.written = run;
+    return run;
+  }
+
+  /**
+   * A write the person asked for while another one is still on its way (a key pressed on a rule that already shows its
+   * new place while the views are read back): it waits for that one instead of being dropped, and its operations are
+   * made only then, from the state after it (`make` answers `null` when there is nothing to write any more). Several
+   * of them go one after the other, in the order asked.
+   */
+  async writeNext(make: () => Op[] | null, options: { dryRun?: boolean; undoable?: boolean } = {}): Promise<Outcome | null> {
+    // The check, the making and the start of the write are one step: no other write can slip in between.
+    while (this.writing) await this.written.catch(() => undefined);
+    const ops = make();
+    return ops ? this.write(ops, options) : null;
+  }
+
+  private async send(ops: Op[], options: { dryRun?: boolean; undoable?: boolean }): Promise<Outcome | null> {
     const dryRun = options.dryRun === true;
     this.writing = true;
     try {

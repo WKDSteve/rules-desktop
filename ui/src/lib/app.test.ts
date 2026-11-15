@@ -615,6 +615,24 @@ describe('writing', () => {
     expect(s.app.writing).toBe(false);
   });
 
+  it('a write asked for while another one still reads its result waits for it, is made from the state after it, and is not lost', async () => {
+    const s = await ready();
+    const back = { op: 'set', id: 'DEP-01', patch: { severity: 'recommended' }, if_match: 'sha256:after1' };
+    // The rule already shows its new state while the first write still reads it back: two keys pressed then.
+    const first = s.app.write([critical]);
+    expect(s.app.writing).toBe(true);
+    const seen: boolean[] = [];
+    const second = s.app.writeNext(() => (seen.push(s.app.writing), [back]));
+    const third = s.app.writeNext(() => (seen.push(s.app.writing), [critical]));
+    const fourth = s.app.writeNext(() => null);
+    const outcomes = await Promise.all([first, second, third, fourth]);
+    expect(s.fake.opsRequests.map((r) => r.ops)).toEqual([[critical], [back], [critical]]);
+    expect(outcomes.map((o) => o?.saved ?? null)).toEqual([1, 1, 1, null]);
+    // Each one is made only when nothing else is on its way.
+    expect(seen).toEqual([false, false]);
+    expect(s.app.writing).toBe(false);
+  });
+
   it('asks the hub for the state it has after a write, and for the open rule again', async () => {
     const s = await ready();
     await s.app.openDetail('DEP-01');

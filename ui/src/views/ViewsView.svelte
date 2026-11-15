@@ -137,19 +137,32 @@
 
   const itemOf = (id: string) => items.find((i) => i.id === id);
   /** Whether the field of the view can be written by a drag at all (the engine names how). */
-  const movable = $derived(!!first?.writable && first.mode !== undefined && !app.writing);
+  const writable = $derived(!!first?.writable && first.mode !== undefined);
+  /** A rule is dragged only while no write is on its way (a key waits for it instead, see `drop`). */
+  const movable = $derived(writable && !app.writing);
 
   function refuse(reason: Refusal): void {
     if (reason !== 'same') app.notice = { key: `views.refused.${reason}` as Key };
   }
 
-  async function drop(id: string, from: string, to: string): Promise<void> {
-    const item = itemOf(id);
-    if (!item || !first) return;
-    const d = dropOp(item, first, from, to);
-    if (d.kind === 'refused') return refuse(d.reason);
-    await app.write([d.op]);
-    focusItem(id);
+  /**
+   * The drop of a rule from one group onto another. A drop asked for while a write is still on its way (the rule
+   * already shows its new group while the views are read back) waits for it instead of being lost; `where` names the
+   * groups only then, from what the page shows after it.
+   */
+  async function drop(id: string, where: () => { from: string; to: string } | null): Promise<void> {
+    let refusal = null as Refusal | null;
+    await app.writeNext(() => {
+      const item = itemOf(id);
+      const at = where();
+      if (!item || !first || !at) return null;
+      const d = dropOp(item, first, at.from, at.to);
+      if (d.kind === 'op') return [d.op];
+      refusal = d.reason;
+      return null;
+    });
+    if (refusal) refuse(refusal);
+    else focusItem(id);
   }
 
   function canDrop(id: string, from: string, to: string): boolean {
@@ -169,22 +182,34 @@
     if (key !== 'h' && key !== 'l') return;
     event.preventDefault();
     event.stopPropagation();
-    if (event.repeat || app.writing) return;
+    if (event.repeat) return;
     // A field the engine does not write: said, not silently ignored.
-    if (!movable) return refuse('read_only');
-    const to = neighbourGroup(groups, from, key === 'l' ? 1 : -1);
-    if (to !== null) void drop(id, from, to);
+    if (!writable) return refuse('read_only');
+    const dir = key === 'l' ? 1 : -1;
+    void drop(id, () => {
+      // A key pressed again before the first move was read back: from the group the rule is in now.
+      const inGroup = (g: Group<Item>) => g.items.some((i) => i.id === id);
+      const now = groups.some((g) => g.value === from && inGroup(g)) ? from : groups.find(inGroup)?.value;
+      const to = now === undefined ? null : neighbourGroup(groups, now, dir);
+      return now === undefined || to === null ? null : { from: now, to };
+    });
   }
 
   // A matrix: a rule of the opened cell is dragged onto another cell, or moved with Shift and h, l, j, k.
   let draggingCell = $state<{ id: string; from: Cell } | null>(null);
 
   async function dropCell(id: string, from: Cell, to: Cell): Promise<void> {
-    const item = itemOf(id);
-    if (!item || !first || !second) return;
-    const d = cellDropOp(item, first, second, from, to);
-    if (d.kind === 'refused') return refuse(d.reason);
-    await app.write([d.op]);
+    // As `drop`: a move asked for while a write is on its way waits for it.
+    let refusal = null as Refusal | null;
+    await app.writeNext(() => {
+      const item = itemOf(id);
+      if (!item || !first || !second) return null;
+      const d = cellDropOp(item, first, second, from, to);
+      if (d.kind === 'op') return [d.op];
+      refusal = d.reason;
+      return null;
+    });
+    if (refusal) return refuse(refusal);
     opened = to;
     focusItem(id);
   }
@@ -360,7 +385,7 @@
           ontoggle={toggle}
           columnsLabel={current.title}
           busy={app.writing}
-          ondrop={movable ? (id, from, to) => void drop(id, from, to) : undefined}
+          ondrop={movable ? (id, from, to) => void drop(id, () => ({ from, to })) : undefined}
           {canDrop}
           gripHint={t('views.grip')}
         />
