@@ -8,6 +8,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use appkit_core::child::{self, Environment, Leftovers, Run, Start};
+use appkit_core::proc::{Output, ProcError};
 use appkit_hub::engine::{child_env, CliEngineConfig, EngineVars};
 use appkit_hub::BoxFuture;
 
@@ -35,43 +37,60 @@ pub struct ProcessLocator {
 /// The longest the question may take.
 const TIMEOUT: Duration = Duration::from_secs(30);
 
+/// The longest answer and the longest complaint that are read: two paths fit many times over, and an engine that
+/// writes more is ended instead of filling the memory of the hub.
+const MAX_ANSWER: usize = 64 * 1024;
+
+/// Who starts the process, as the log of the hub names it.
+const CALLER: &str = "rules-hub locate";
+
 impl ProcessLocator {
     #[must_use]
     pub fn new(cfg: CliEngineConfig) -> Self {
         Self { cfg }
     }
 
-    async fn ask(&self, id: &str) -> Result<Located, &'static str> {
+    /// The call of the engine: through the helper of appkit (rule RS-08), so it has no window, ends with the hub
+    /// and ends with everything it started when it takes too long or writes too much. The path of Neovim is the
+    /// one of the settings, taken as it is.
+    fn call(&self, id: &str) -> Run {
         let vars = EngineVars {
             dialect: self.cfg.dialect,
             vault: &self.cfg.vault,
             lib_dir: self.cfg.lib_dir.as_deref(),
             extra_areas: &[],
         };
-        let mut command = tokio::process::Command::new(&self.cfg.nvim);
-        command
-            .args(locate_args(&self.cfg.script, id))
-            .env_clear()
-            .envs(child_env(&self.cfg.env, Some(&vars)))
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .kill_on_drop(true);
-        #[cfg(windows)]
-        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-        let child = command
-            .spawn()
-            .map_err(|_| "the engine could not be started")?;
-        let output = tokio::time::timeout(TIMEOUT, child.wait_with_output())
-            .await
-            .map_err(|_| "the engine did not answer in time")?
-            .map_err(|_| "the engine could not be read")?;
-        match output.status.code() {
-            Some(0) => parse(&String::from_utf8_lossy(&output.stdout)),
-            // The engine does not hold the id: the page was told by the snapshot it does, so the vault changed.
-            Some(1) => Err("the engine does not hold this rule"),
-            _ => Err("the engine could not tell where the file is"),
+        Run {
+            start: Start::as_given(CALLER, &self.cfg.nvim)
+                .args(locate_args(&self.cfg.script, id))
+                .env(Environment::Only(child_env(&self.cfg.env, Some(&vars)))),
+            stdin: Vec::new(),
+            timeout: TIMEOUT,
+            max_stdout: MAX_ANSWER,
+            max_stderr: MAX_ANSWER,
+            leftovers: Leftovers::End,
         }
+    }
+
+    async fn ask(&self, id: &str) -> Result<Located, &'static str> {
+        answer(child::run(self.call(id)).await)
+    }
+}
+
+/// What the page is told for the end of the call.
+fn answer(ran: Result<Output, ProcError>) -> Result<Located, &'static str> {
+    let output = match ran {
+        Ok(output) => output,
+        Err(ProcError::Spawn(_)) => return Err("the engine could not be started"),
+        Err(ProcError::Timeout(_)) => return Err("the engine did not answer in time"),
+        Err(ProcError::TooLarge { .. }) => return Err("the engine answered too much"),
+        Err(ProcError::Io(_)) => return Err("the engine could not be read"),
+    };
+    match output.code {
+        Some(0) => parse(&String::from_utf8_lossy(&output.stdout)),
+        // The engine does not hold the id: the page was told by the snapshot it does, so the vault changed.
+        Some(1) => Err("the engine does not hold this rule"),
+        _ => Err("the engine could not tell where the file is"),
     }
 }
 
@@ -114,6 +133,7 @@ impl Locate for ProcessLocator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scratch::Scratch;
 
     #[test]
     fn two_lines_are_the_file_and_the_ruleset() {
@@ -141,5 +161,65 @@ mod tests {
         for bad in ["", "\n", "\n/v\n", "/a\n/b\n/c\n"] {
             assert!(parse(bad).is_err(), "{bad:?}");
         }
+    }
+
+    /// Neovim of this machine, as the tests of the engine use it.
+    fn nvim() -> PathBuf {
+        let name = if cfg!(windows) { "nvim.exe" } else { "nvim" };
+        std::env::split_paths(&std::env::var_os("PATH").expect("PATH is set"))
+            .map(|dir| dir.join(name))
+            .find(|candidate| candidate.is_file())
+            .expect("the test of locate needs nvim on the PATH")
+    }
+
+    /// A locator whose "engine" is the Lua script `body`.
+    fn locator(folder: &Scratch, body: &str) -> ProcessLocator {
+        let script = folder.join("engine.lua");
+        std::fs::write(&script, body).unwrap();
+        ProcessLocator::new(CliEngineConfig {
+            dialect: crate::engine::DIALECT,
+            nvim: nvim(),
+            script,
+            vault: folder.to_path_buf(),
+            lib_dir: None,
+            extra_areas: Vec::new(),
+            env: appkit_hub::env::Env::from_process(),
+            timeout: TIMEOUT,
+            max_queue: 1,
+            max_reply_bytes: MAX_ANSWER,
+        })
+    }
+
+    #[tokio::test]
+    async fn a_real_process_answers_through_the_helper() {
+        let folder = Scratch::new("locate-answer");
+        let found = locator(&folder, "io.write('/v/a/b.md\\n/v/a\\n')")
+            .ask("A-01")
+            .await
+            .unwrap();
+        assert_eq!(found.file, PathBuf::from("/v/a/b.md"));
+        assert_eq!(found.root, Some(PathBuf::from("/v/a")));
+        let missing = locator(&folder, "os.exit(1)").ask("A-01").await;
+        assert_eq!(missing, Err("the engine does not hold this rule"));
+    }
+
+    /// An engine that writes without end is ended and its text is not taken for a path: before the helper the
+    /// whole output was read into memory and its first line was the "file".
+    #[tokio::test]
+    async fn an_answer_past_the_limit_ends_the_engine() {
+        let folder = Scratch::new("locate-flood");
+        let flood = format!("io.write(string.rep('x', {}))", MAX_ANSWER * 4);
+        let got = locator(&folder, &flood).ask("A-01").await;
+        assert_eq!(got, Err("the engine answered too much"));
+    }
+
+    #[test]
+    fn the_call_is_bounded_and_leaves_nothing_behind() {
+        let folder = Scratch::new("locate-call");
+        let run = locator(&folder, "").call("A-01");
+        assert_eq!(run.timeout, TIMEOUT);
+        assert_eq!((run.max_stdout, run.max_stderr), (MAX_ANSWER, MAX_ANSWER));
+        assert_eq!(run.leftovers, Leftovers::End);
+        assert_eq!(run.start.caller(), CALLER);
     }
 }
