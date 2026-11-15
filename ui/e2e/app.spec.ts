@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { expectAccessible, violations, watchViolations } from './a11y';
 import { STATE } from './global';
 import { changedFiles, changedLines, HOSTILE, ORIGIN, pairingLink } from './hub';
@@ -36,6 +36,18 @@ async function pair(page: Page): Promise<void> {
 
 async function view(page: Page, name: 'Overview' | 'Families' | 'Rules' | 'Coverage' | 'Waivers'): Promise<void> {
   await page.getByRole('navigation').getByRole('link', { name, exact: true }).click();
+}
+
+/**
+ * Opens the form for a new view of the tab Views. The page opens it by itself once it has read that there is no view:
+ * a click on the summary read before that would fold it again, so the click is repeated until the field shows.
+ */
+async function openNewView(tab: Locator): Promise<void> {
+  const form = tab.locator('details.new');
+  await expect(async () => {
+    if (!(await form.evaluate((d) => (d as HTMLDetailsElement).open))) await form.locator('summary').click();
+    await expect(tab.getByLabel('Title', { exact: true })).toBeVisible({ timeout: 1_000 });
+  }).toPass();
 }
 
 async function noProblems(page: Page): Promise<void> {
@@ -710,12 +722,10 @@ test('a saved view is made, drawn as columns, a list and a matrix, renamed, fold
   const tab = page.getByRole('region', { name: 'Views', exact: true });
   await expect(tab).toBeVisible();
   // The form for a new view stays as the person left it: open it when it is folded.
-  const openNew = async (): Promise<void> => {
-    const form = tab.locator('details.new');
-    if (!(await form.evaluate((d) => (d as HTMLDetailsElement).open))) await form.locator('summary').click();
-  };
+  const openNew = (): Promise<void> => openNewView(tab);
 
   // Made: columns by family; the file is in the vault, the groups are the families of the rules.
+  await openNew();
   await tab.getByLabel('Title', { exact: true }).fill('By family e2e');
   await tab.getByLabel('Drawn as').selectOption('columns');
   await tab.getByLabel('Grouped by').selectOption('family');
@@ -781,8 +791,7 @@ test('a rule dragged to another group of a view, or moved with Shift and a key, 
   await page.keyboard.press('v');
   const tab = page.getByRole('region', { name: 'Views', exact: true });
   const make = async (title: string, groupBy: string): Promise<void> => {
-    const form = tab.locator('details.new');
-    if (!(await form.evaluate((d) => (d as HTMLDetailsElement).open))) await form.locator('summary').click();
+    await openNewView(tab);
     await tab.getByLabel('Title', { exact: true }).fill(title);
     await tab.getByLabel('Drawn as').selectOption('columns');
     await tab.getByLabel('Grouped by').selectOption(groupBy);
