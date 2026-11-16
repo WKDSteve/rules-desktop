@@ -33,6 +33,8 @@ It is **not** a place to run the checks or to let an agent work the manual rules
 - **Loopback only, token always.** Host and Origin are checked, there is no data endpoint without a session.
 - **Data classes fail closed.** A rule set source without an entry in the per-device configuration is treated as not
   released; public and private rule sets are never mixed.
+- **No console window, nothing left behind.** Every program the hub starts is a child bound to it, a program of
+  somebody else started visibly, or a link the system opens; the list is in [docs/PROCESSES.md](docs/PROCESSES.md).
 - **A rule set is code.** The app never runs a rule's `check`, and rule text is shown as text.
 - rules.nvim stays a pure Lua plugin. This repository holds the hub, the UI and the native shell.
 
