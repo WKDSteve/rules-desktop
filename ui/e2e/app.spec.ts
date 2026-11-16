@@ -771,7 +771,12 @@ test('a saved view is made, drawn as columns, a list and a matrix, renamed, fold
   await tab.getByLabel('Grouped by').selectOption('severity');
   await tab.getByRole('button', { name: 'Make the view' }).click();
   await expect.poll(() => existsSync(file('list-e2e'))).toBe(true);
-  await tab.getByRole('button', { name: /^critical/ }).first().click();
+  // The file is written before the page switches to the new view: until then the matrix is drawn, whose count
+  // button `critical, active: N rules` would be hit and fold nothing. Wait for the list and take its fold button.
+  await expect(tab.getByLabel('View', { exact: true })).toHaveValue('list-e2e');
+  const fold = tab.getByRole('button', { name: /^critical/, expanded: true });
+  await fold.click();
+  await expect(tab.getByRole('button', { name: /^critical/, expanded: false })).toBeVisible();
   await expect.poll(() => readFileSync(file('list-e2e'), 'utf8')).toMatch(/collapsed/);
 
   // Deleted after a question; "Keep it" deletes nothing.
