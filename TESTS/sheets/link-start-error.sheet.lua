@@ -13,8 +13,10 @@ return {
   sizes = { { cols = 640, rows = 240 } },
   steps = {
     { wait = "OK", timeout = 5000, note = "the message box of rules-hub is up, with its button" },
+    { expect = { contains = "EOF while parsing" }, note = "it says why: the broken config.json" },
+    { expect = { contains = "hub.log" }, note = "and where to read more" },
     { shot = "message" },
     { click = "OK", note = "the person closes it" },
   },
-  judge = { "The message says why the hub did not start and where to read more (hub.log)" },
+  judge = { "The message is readable: the cause and hub.log are checked by the steps, the box must not cut them off" },
 }
