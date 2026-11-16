@@ -5,16 +5,16 @@
 -- in the manual sheet window-program-live (the real Start menu link and login).
 --   testing sheets run --sheet link-start-error
 return {
-	id = "rules-desktop.link-start-error",
-	title = "rules-hub: a start from a link that fails says so in a message box",
-	task = "rules-desktop/handlauf-hub-als-fenster-programm-im-echten-profil",
-	engine = "desktop",
-	app = "link-start-error",
-	sizes = { { cols = 640, rows = 240 } },
-	steps = {
-		{ wait = "OK", timeout = 5000, note = "the message box of rules-hub is up, with its button" },
-		{ shot = "message" },
-		{ click = "OK", note = "the person closes it" },
-	},
-	judge = { "The message says why the hub did not start and where to read more (hub.log)" },
+  id = "rules-desktop.link-start-error",
+  title = "rules-hub: a start from a link that fails says so in a message box",
+  task = "rules-desktop/handlauf-hub-als-fenster-programm-im-echten-profil",
+  engine = "desktop",
+  app = "link-start-error",
+  sizes = { { cols = 640, rows = 240 } },
+  steps = {
+    { wait = "OK", timeout = 5000, note = "the message box of rules-hub is up, with its button" },
+    { shot = "message" },
+    { click = "OK", note = "the person closes it" },
+  },
+  judge = { "The message says why the hub did not start and where to read more (hub.log)" },
 }
