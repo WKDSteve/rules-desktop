@@ -971,3 +971,177 @@ async fn a_rule_set_is_made_moved_to_the_archive_and_brought_back_through_the_re
     assert_eq!(bad["results"][0]["error"]["code"], "invalid_argument");
     assert!(!vault.join("x").exists());
 }
+
+// ── a hub in the background ends itself when it is left alone ──────────────────────────────────
+
+/// Stops the background hub of a config folder when the test ends however it ends (the hub is a process of its
+/// own, started by `start`, not a child of the test).
+struct Background<'a>(&'a Path);
+
+impl Drop for Background<'_> {
+    fn drop(&mut self) {
+        let _ = run(self.0, &["stop"]);
+    }
+}
+
+/// `start` with a short time alone (`RULES_DESKTOP_ALONE_SECS`), on a port of its own, with no login entry of
+/// the machine asked.
+fn start_in_background(config: &Path, port: u16, alone_secs: u32) {
+    let mut c = without_system_entries(command(config, &["start"]));
+    let started = c
+        .env("RULES_DESKTOP_PORT", port.to_string())
+        .env("RULES_DESKTOP_ALONE_SECS", alone_secs.to_string())
+        .output()
+        .unwrap();
+    assert!(started.status.success(), "{}", text(&started.stderr));
+    assert!(
+        text(&started.stdout).contains("runs in the background"),
+        "{started:?}"
+    );
+}
+
+/// Whether a hub answers on the port.
+fn answers(port: u16) -> bool {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    std::net::TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
+}
+
+/// Wait until the hub of this config folder is gone: no record, nothing on the port.
+fn gone_within(config: &Path, port: u16, limit: Duration) -> bool {
+    let deadline = Instant::now() + limit;
+    while Instant::now() < deadline {
+        if !config.join("hub.json").exists() && !answers(port) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
+async fn app_of(port: u16) -> Value {
+    let reply = client::request(port, "GET", "/api/rules/hello", &[], "")
+        .await
+        .expect("hello");
+    serde_json::from_str::<Value>(&reply.body).unwrap_or(Value::Null)["app"].clone()
+}
+
+/// A hub that was started for a window nobody opened does not stay behind: it has no window, so nobody would ever
+/// see or stop it.
+#[test]
+fn a_hub_in_the_background_that_nobody_opens_ends_itself() {
+    let config = config_dir("alone", None);
+    let port = free_port();
+    let _guard = Background(&config);
+    // Ten seconds, not two: `start` has to see the hub answer while it lives, also on a machine under load.
+    start_in_background(&config, port, 10);
+
+    assert!(
+        gone_within(&config, port, Duration::from_secs(40)),
+        "the hub still runs: {}",
+        std::fs::read_to_string(config.join("hub.log")).unwrap_or_default()
+    );
+    // It left on its own terms: its record and its secret are gone, and it said why in its log.
+    assert!(!config.join("control.secret").exists());
+    let log = std::fs::read_to_string(config.join("hub.log")).unwrap();
+    assert!(log.contains("no page is connected"), "{log}");
+    assert!(text(&run(&config, &["stop"]).stdout).contains("no hub is running"));
+}
+
+/// The hub stays as long as a page holds a connection with its session, and goes once that page is closed.
+#[tokio::test]
+async fn a_hub_in_the_background_stays_while_a_page_is_connected_and_ends_after_it_closed() {
+    use std::io::{Read, Write};
+
+    let config = config_dir("page", None);
+    let port = free_port();
+    let _guard = Background(&config);
+    let alone: u32 = 8;
+    start_in_background(&config, port, alone);
+
+    // The page: a pairing link, its session, and a connection that stays open (as the event stream does).
+    let out = run(&config, &["open"]);
+    assert!(out.status.success(), "{out:?}");
+    let link = text(&out.stdout);
+    let code = link
+        .trim()
+        .split_once("#pair=")
+        .expect("a pairing link")
+        .1
+        .to_owned();
+    let origin = format!("http://127.0.0.1:{port}");
+    let body = format!(r#"{{"code":"{code}"}}"#);
+    let headers = [
+        ("Content-Type", "application/json"),
+        ("Origin", origin.as_str()),
+    ];
+    let paired = client::request(port, "POST", "/auth/exchange", &headers, &body)
+        .await
+        .unwrap();
+    assert_eq!(paired.status, 200, "{}", paired.body);
+    let token = serde_json::from_str::<Value>(&paired.body).unwrap()["token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mut page = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    page.set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    // The event stream, not a request that is over: an idle connection between two requests is closed by the hub
+    // after ten seconds, and the test would then not hang on this page at all.
+    write!(
+        page,
+        "GET /api/rules/events HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {token}\r\n\r\n"
+    )
+    .unwrap();
+    let mut head = [0u8; 12];
+    page.read_exact(&mut head).unwrap();
+    assert_eq!(&head, b"HTTP/1.1 200", "the stream is open");
+
+    // More than twice the time alone, and past the ten seconds an idle connection gets: the stream is still open,
+    // so the hub is too.
+    tokio::time::sleep(Duration::from_secs(u64::from(alone) * 2 + 6)).await;
+    assert_eq!(app_of(port).await, "rules-desktop");
+    assert!(config.join("hub.json").exists());
+
+    drop(page);
+    assert!(
+        gone_within(&config, port, Duration::from_secs(u64::from(alone) + 40)),
+        "the page is closed and the hub still runs"
+    );
+}
+
+/// An order to stay is the person's: `keep_running` in the settings keeps a hub in the background without a page.
+/// A hub in a terminal is never left alone either: the person there ends it.
+#[tokio::test]
+async fn a_hub_with_an_order_to_stay_and_a_hub_in_a_terminal_do_not_end_themselves() {
+    let config = config_dir("keep", None);
+    let port = free_port();
+    let _guard = Background(&config);
+    std::fs::write(config.join("config.json"), r#"{"keep_running":true}"#).unwrap();
+    start_in_background(&config, port, 1);
+
+    let terminal = config_dir("terminal", None);
+    let terminal_port = free_port();
+    let child = without_system_entries(command(
+        &terminal,
+        &["serve", "--port", &terminal_port.to_string()],
+    ))
+    .env("RULES_DESKTOP_ALONE_SECS", "1")
+    .stdout(Stdio::null())
+    .stderr(Stdio::null())
+    .spawn()
+    .expect("rules-hub starts");
+    let _hub = Running {
+        child,
+        dir: terminal,
+        port: terminal_port,
+    };
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !_hub.dir.join("hub.json").exists() {
+        assert!(Instant::now() < deadline, "the hub never wrote hub.json");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    tokio::time::sleep(Duration::from_secs(6)).await;
+    assert_eq!(app_of(port).await, "rules-desktop");
+    assert_eq!(app_of(terminal_port).await, "rules-desktop");
+}

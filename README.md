@@ -88,6 +88,12 @@ login entry open no console window, and an error shows in a message box (a debug
 From a terminal it writes its output there, but the prompt comes back at once (the shell does not wait for a
 window program); a script that needs the output or the exit code pipes it, `(& rules-hub --version | Out-String).Trim()`.
 
+A hub in the background has no window to close, so it ends itself: a while after the last page closed (ten minutes;
+`RULES_DESKTOP_ALONE_SECS` sets it), unless it has an order to stay: it starts with your login, a device is paired
+with it, or `"keep_running": true` stands in `config.json`. A start that opens the page (a double click, `start
+--open`) stops the hub it started again when the page cannot be opened. A hub in a terminal (`serve`) is ended there,
+with Ctrl-C or `rules-hub stop`.
+
 To install it for your user without administrator rights, see [Install](#install) below.
 
 It needs a Neovim (0.12 or newer), a rules.nvim checkout and the rules vault: `RULES_NVIM`,

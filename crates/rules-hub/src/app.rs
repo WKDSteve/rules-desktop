@@ -83,6 +83,37 @@ async fn wait_for_stop() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
+/// Wait until the hub is to end: Ctrl-C (or SIGTERM), `rules-hub stop`, or, for a hub in the background, being left
+/// alone. Such a hub has no window to close: it ends itself once no page has been connected for a while, unless the
+/// person gave it an order to stay (the start with the login, a paired device, `keep_running` in `config.json`). The
+/// settings are read then, not at the start: the order may be new.
+async fn wait_until_over(running: &appkit_hub::RunningServer, dir: &std::path::Path, env: &Env) {
+    let presence = running.presence();
+    let stay = || {
+        let keep_running = match appkit_hub::config::load_file::<RulesSettings>(dir) {
+            Ok(file) => file.keep_running.unwrap_or(false),
+            // Settings that cannot be read are no reason to go: the order may stand in them (a typo while it was
+            // written, a file held for a moment). The hub stays and says why.
+            Err(e) => {
+                println!("the settings cannot be read, so the hub stays: {e}");
+                true
+            }
+        };
+        appkit_hub::background::has_order(
+            &crate::background::APP,
+            env,
+            keep_running,
+            running.paired_devices(),
+        )
+    };
+    tokio::select! {
+        () = wait_for_stop() => {}
+        () = appkit_hub::background::left_alone(&crate::background::APP, env, &presence, stay) => {
+            println!("no page is connected and nothing asks the hub to stay: it ends");
+        }
+    }
+}
+
 /// What the start found out about the engine.
 pub struct EngineState {
     pub status: HubStatus,
@@ -305,7 +336,8 @@ pub async fn serve(opts: ServeOptions) -> Result<(), String> {
         IDENTITY.binary
     );
 
-    wait_for_stop().await;
+    // On the heap: a large future in `serve` overflows the 1 MB stack of the main thread of Windows in a debug build.
+    Box::pin(wait_until_over(&running, &dir, &env)).await;
     registry::remove_record(&dir);
     registry::remove_secret(&dir);
     running.shutdown().await;
