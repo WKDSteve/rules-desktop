@@ -1,0 +1,105 @@
+# Pull-request CI of rules-desktop, on GitHub-hosted runners.
+#
+# Pushes to main run on the maintainer's self-hosted runner (ci.yml). A pull request -- above all one from a fork --
+# must never reach that machine, so it runs here: a throwaway GitHub VM, a read-only token, no secrets. Everything it
+# fetches is public and fetched without credentials (rules.nvim and lib.nvim at the pins of engine.lock, appkit through
+# Cargo and pnpm); a green run is the proof that a stranger can build the app.
+#
+# The jobs are those of ci.yml (rust, ui, hygiene), step for step where a hosted VM can do it. Left out, on purpose:
+# the install scripts (they write a login entry and a link of the user), supply-chain (cargo-audit and cargo-deny are
+# no tools of the image) and the browser tests (they need the built page and the system's Chrome profile); the push
+# run on main keeps doing them. A difference beyond these is a finding.
+#
+# A fork can edit this file in its pull request (e.g. `runs-on: self-hosted`). The repository therefore requires
+# approval before a workflow of an outside contributor runs (`all_external_contributors`); never approve a pull
+# request that touches `.github/`.
+
+name: PR
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RULES_ENGINE_DIR: ${{ github.workspace }}/engine/rules.nvim
+  LIB_NVIM_DIR: ${{ github.workspace }}/engine/lib.nvim
+  # The Neovim of the engine tests, as on the maintainer's runner.
+  NVIM_VERSION: v0.12.2
+
+defaults:
+  run:
+    # Git Bash on the Windows image.
+    shell: bash
+
+jobs:
+  rust:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          persist-credentials: false
+      # Neovim from its release, checked against the release's own shasum.txt.
+      - name: Neovim
+        run: |
+          base="https://github.com/neovim/neovim/releases/download/$NVIM_VERSION"
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o nvim-win64.zip "$base/nvim-win64.zip"
+          curl -fsSL -o shasum.txt "$base/shasum.txt"
+          grep ' nvim-win64.zip$' shasum.txt | sha256sum -c -
+          unzip -q nvim-win64.zip
+          echo "$RUNNER_TEMP/nvim-win64/bin" >> "$GITHUB_PATH"
+      - name: Fetch the pinned engine (rules.nvim) and lib.nvim
+        run: |
+          commit="$(sed -n 's/^commit *= *//p' engine.lock)"
+          lib_commit="$(sed -n 's/^lib_commit *= *//p' engine.lock)"
+          rm -rf engine
+          mkdir engine
+          git clone --quiet https://github.com/WKDSteve/rules.nvim engine/rules.nvim
+          git -C engine/rules.nvim checkout --quiet "$commit"
+          git clone --quiet https://github.com/WKDSteve/lib.nvim engine/lib.nvim
+          git -C engine/lib.nvim checkout --quiet "$lib_commit"
+      - run: nvim --version | head -n1 && cargo --version
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - name: The release build is a window program
+        run: cargo test --release --locked -p rules-hub --test window_program
+
+  ui:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          persist-credentials: false
+      # pnpm of the maintainer's runner; on a throwaway VM a global install changes nothing that stays.
+      - run: npm install --global pnpm@10.29.2
+      # appkit-ui comes from the public appkit repository at its tag, without a token.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm audit --audit-level high
+
+  hygiene:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          persist-credentials: false
+      - run: python -m unittest discover tools
+      - run: python tools/check-control-chars.py
+      - run: python tools/check-process-starts.py
+      - run: python tools/check-color-literals.py --root ui/src --tokens ui/src/palette.css
