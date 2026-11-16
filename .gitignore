@@ -22,3 +22,6 @@ __pycache__/
 
 ui/test-results/
 ui/playwright-report/
+
+# pictures of the test sheets (testing.nvim `shot` steps)
+TESTS/sheets/out/
