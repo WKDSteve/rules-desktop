@@ -9,3 +9,13 @@ onlyBuiltDependencies: []
 # versions had. It is a build-time tool, never in the shipped bundle.
 trustPolicyExclude:
   - chokidar@4.0.3
+# One audit advisory left out (2026-11-18, as tasks-desktop, testing-desktop and appkit did):
+# GHSA-fc5q-39xc-vjpf, picomatch ReDoS through repeated extglobs, every version
+# <=4.0.7, no fixed version published. picomatch is reached only through
+# devDependencies (svelte-check>fdir): build and test tools that read our own
+# globs, never in the hub or the shipped page (`pnpm why picomatch --prod` is
+# empty). Remove once picomatch is fixed (task in tasks-vault:
+# rules-desktop/ausnahme-ghsa-fc5q-39xc-vjpf-entfernen).
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
