@@ -1145,3 +1145,31 @@ async fn a_hub_with_an_order_to_stay_and_a_hub_in_a_terminal_do_not_end_themselv
     assert_eq!(app_of(port).await, "rules-desktop");
     assert_eq!(app_of(terminal_port).await, "rules-desktop");
 }
+
+/// On Linux and macOS the program is also the watcher of the process group of each child it starts (appkit's
+/// `child::watcher_main`, the first call of `main`): started with `--appkit-child-watcher` it only waits on descriptor
+/// 3, here a pipe with one byte in it (the group released), and ends without a word. Without that call the argument
+/// would be a usage error. In a process group of its own, so nothing of the test run is ever its group.
+#[cfg(unix)]
+#[test]
+fn the_program_is_the_watcher_of_its_childrens_groups() {
+    use std::io::Write;
+    use std::os::unix::process::CommandExt;
+
+    let mut watcher = Command::new("/bin/sh")
+        .args(["-c", "exec \"$0\" --appkit-child-watcher 3<&0"])
+        .arg(env!("CARGO_BIN_EXE_rules-hub"))
+        .env_clear()
+        .process_group(0)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the program starts");
+    let mut pipe = watcher.stdin.take().unwrap();
+    pipe.write_all(&[1]).unwrap();
+    drop(pipe);
+    let out = watcher.wait_with_output().unwrap();
+    assert!(out.status.success(), "{out:?}");
+    assert!(out.stdout.is_empty() && out.stderr.is_empty(), "{out:?}");
+}

@@ -177,8 +177,16 @@ async fn run(args: Vec<String>) -> Result<(), String> {
     }
 }
 
+fn main() {
+    // First, before the runtime: on Linux and macOS this program is also the watcher of the process group of each
+    // child it starts (started with `--appkit-child-watcher`, it only waits and never returns here); docs/PROCESSES.md
+    // of appkit.
+    appkit_core::child::watcher_main();
+    hub_main();
+}
+
 #[tokio::main]
-async fn main() {
+async fn hub_main() {
     // Before the first line is written.
     let console = console::attach_parent();
     console::report_panics("rules-hub");
