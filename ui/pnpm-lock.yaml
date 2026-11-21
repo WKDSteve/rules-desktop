@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       appkit-ui:
-        specifier: github:WKDSteve/appkit#v0.70.0&path:ui-kit
-        version: https://codeload.github.com/WKDSteve/appkit/tar.gz/771619ab77122f844f47d8004d214152f13c5eca#path:ui-kit(svelte@5.57.2)
+        specifier: github:WKDSteve/appkit#v0.71.0&path:ui-kit
+        version: https://codeload.github.com/WKDSteve/appkit/tar.gz/4ab098e6cd0699fb36d281174939e539eb1a0d75#path:ui-kit(svelte@5.57.2)
       markdown-it:
         specifier: ^15.0.3
         version: 15.0.3
@@ -223,8 +223,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/771619ab77122f844f47d8004d214152f13c5eca#path:ui-kit:
-    resolution: {path: ui-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/771619ab77122f844f47d8004d214152f13c5eca}
+  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/4ab098e6cd0699fb36d281174939e539eb1a0d75#path:ui-kit:
+    resolution: {path: ui-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/4ab098e6cd0699fb36d281174939e539eb1a0d75}
     version: 0.0.0
     peerDependencies:
       svelte: ^5.0.0
@@ -724,7 +724,7 @@ snapshots:
 
   acorn@8.19.0: {}
 
-  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/771619ab77122f844f47d8004d214152f13c5eca#path:ui-kit(svelte@5.57.2):
+  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/4ab098e6cd0699fb36d281174939e539eb1a0d75#path:ui-kit(svelte@5.57.2):
     dependencies:
       markdown-it: 15.0.3
       svelte: 5.57.2
