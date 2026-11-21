@@ -165,6 +165,9 @@ jobs:
         shell: pwsh
         run: python ../tools/check-temp-leftovers.py --dir "$env:JOB_TEMP"
       - run: pnpm build
+      # What the build ships has a number (measured 451 kB on 2026-11-21, about a tenth of room): a page that only grows
+      # is parsed at every start. Over it: find what grew before raising it.
+      - run: python ../tools/check-dist-size.py dist --budget 500
       - run: pnpm audit --audit-level high
       # Informative only (never red): legacy web-platform patterns against the target in .mwgrc. The scanner is an
       # exact devDependency, so the policy of ui/pnpm-workspace.yaml applies to it; no telemetry.
