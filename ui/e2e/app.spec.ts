@@ -198,11 +198,16 @@ test('the search is emptied in one click on its named button, or with Escape in 
   // Escape: a synthetic key press, which the browser itself does nothing with, so only the page's handler can empty the
   // field (Chrome empties a search field on a real Escape by itself).
   await box.fill('never dropped');
-  const prevented = await box.evaluate((el) => {
-    const press = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
-    el.dispatchEvent(press);
-    return press.defaultPrevented;
-  });
+  const escape = () =>
+    box.evaluate((el) => {
+      const press = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      el.dispatchEvent(press);
+      return press.defaultPrevented;
+    });
+  // The field explains itself (hover hint): while that hint is open the first Escape closes the hint and leaves the
+  // text, the next one empties the field.
+  let prevented = await escape();
+  if ((await box.inputValue()) !== '') prevented = (await escape()) && prevented;
   expect(prevented).toBe(true);
   await expect(box).toHaveValue('');
   // The button is reached with Tab and works with Enter.

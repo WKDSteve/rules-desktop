@@ -1,4 +1,27 @@
 <script lang="ts">
+  /**
+   * A confirmation is a modal `<dialog>`: it takes the focus, makes the page behind it inert and answers Escape.
+   * Escape and the end of the element are the same "no": `oncancel` is called, and only then does the dialog go.
+   */
+  function modal(node: HTMLDialogElement, oncancel: () => void) {
+    let cancel = oncancel;
+    const onCancel = (event: Event) => {
+      event.preventDefault();
+      cancel();
+    };
+    node.addEventListener('cancel', onCancel);
+    if (!node.open) node.showModal();
+    return {
+      update(next: () => void) {
+        cancel = next;
+      },
+      destroy() {
+        node.removeEventListener('cancel', onCancel);
+        if (node.open) node.close();
+      },
+    };
+  }
+
   // The data classes of this device: which rule set may be shown as what. The classes decide what may leave the hub, so
   // a change that RELEASES MORE is asked first (the hub says when a change does: it knows the policy in force). The
   // hub writes sources.json itself, in the config folder; the vault is not touched. A rule set with no class is
@@ -72,24 +95,24 @@
   <p class="muted">{t('classes.hint')}</p>
 
   {#if app.classConfirm}
-    <div role="alertdialog" aria-label={describe(app.classConfirm)} class="confirm">
+    <dialog role="alertdialog" aria-label={describe(app.classConfirm)} class="confirm" use:modal={() => app.cancelClass()}>
       <p><strong>{shownText(describe(app.classConfirm))}</strong>: {app.classConfirm.class ? t(`class.${app.classConfirm.class}`) : t('classes.none')}</p>
       <p>{t('classes.confirm')}</p>
       <div class="row">
         <button type="button" disabled={app.writing} onclick={() => void app.confirmClass()}>{t('classes.confirm_yes')}</button>
         <button type="button" onclick={() => app.cancelClass()}>{t('classes.confirm_no')}</button>
       </div>
-    </div>
+    </dialog>
   {/if}
 
   {#if app.archiveAsk !== null}
-    <div role="alertdialog" aria-label={t('rulesets.archive')} class="confirm">
+    <dialog role="alertdialog" aria-label={t('rulesets.archive')} class="confirm" use:modal={() => app.cancelArchive()}>
       <p><strong>{shownText(app.archiveAsk)}</strong>: {t('rulesets.archive_confirm')}</p>
       <div class="row">
         <button type="button" disabled={app.writing} onclick={() => void app.archiveRuleset()}>{t('rulesets.archive_yes')}</button>
         <button type="button" onclick={() => app.cancelArchive()}>{t('classes.confirm_no')}</button>
       </div>
-    </div>
+    </dialog>
   {/if}
 
   <h3>{t('rulesets.title')}</h3>
