@@ -166,6 +166,13 @@ jobs:
         run: python ../tools/check-temp-leftovers.py --dir "$env:JOB_TEMP"
       - run: pnpm build
       - run: pnpm audit --audit-level high
+      # Informative only (never red): legacy web-platform patterns against the target in .mwgrc. The scanner is an
+      # exact devDependency, so the policy of ui/pnpm-workspace.yaml applies to it; no telemetry.
+      - name: Legacy web patterns (informative)
+        continue-on-error: true
+        env:
+          DISABLE_TELEMETRY: "1"
+        run: pnpm exec modern-web-guidance legacy-scan src --json
 
   # The browser tests: the binary, the real engine (a real Neovim and the pinned rules.nvim), the system's Chrome,
   # axe on every view in both colour schemes, and a corpus of hostile rules.

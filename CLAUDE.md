@@ -29,3 +29,6 @@ processes and releasing: [docs/](docs/).
 - Before writing or changing HTML, CSS or client-side JS, use the `modern-web-guidance` skill (`search` → `retrieve` → verify). Not for Rust, backend, CI or build config.
 - For open-ended modernisation: `npx -y modern-web-guidance@latest legacy-scan ui/src --json`, check each finding against `keepWhen`/`dropWhen`.
 - Rules: rules-vault ruleset `web` (plus the app rules `WEB-*` in ruleset `native`).
+- The scanner is an exact devDependency of `ui` (the policy of `ui/pnpm-workspace.yaml` applies):
+  `cd ui && DISABLE_TELEMETRY=1 pnpm exec modern-web-guidance legacy-scan src --json`; CI runs it as an informative
+  step. `.claude/settings.json` turns the tool's telemetry off and allows only `npx -y modern-web-guidance@latest *`.
