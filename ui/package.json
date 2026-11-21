@@ -24,5 +24,8 @@
   "dependencies": {
     "appkit-ui": "github:WKDSteve/appkit#v0.70.0&path:ui-kit",
     "markdown-it": "^15.0.3"
-  }
+  },
+  "browserslist": [
+    "baseline widely available"
+  ]
 }
