@@ -25,10 +25,10 @@ processes and releasing: [docs/](docs/).
   --root ui/src --tokens ui/src/palette.css`. Manual test sheets: `TESTS/sheets/` with `.testing.lua` (testing.nvim).
 
 ## Web platform
-- Browser Support: Baseline Widely available (`.mwgrc`, `browserslist`). Newer features only behind feature detection with a fallback; polyfills where browsers still in use need them (rather one too many), run only after the check: dynamic `import()`, or bundled in a `file://` page (rules-vault `BASE-02`).
+- Browser Support: Baseline Widely available (`.mwgrc`, `browserslist`). Newer features only behind feature detection with a fallback; polyfills where browsers still in use need them (rather one too many), run only after the check: dynamic `import()`, or bundled in a `file://` page.
 - Before writing or changing HTML, CSS or client-side JS, use the `modern-web-guidance` skill (`search` → `retrieve` → verify). Not for Rust, backend, CI or build config.
 - For open-ended modernisation: `npx -y modern-web-guidance@latest legacy-scan ui/src --json`, check each finding against `keepWhen`/`dropWhen`.
-- Rules: rules-vault ruleset `web` (plus the app rules `WEB-*` in ruleset `native`).
+- Rules: the maintainer's ruleset for the web platform (private, so not named or cited here by id).
 - The scanner is an exact devDependency of `ui` (the policy of `ui/pnpm-workspace.yaml` applies):
   `cd ui && DISABLE_TELEMETRY=1 pnpm exec modern-web-guidance legacy-scan src --json`; CI runs it as an informative
   step. `.claude/settings.json` turns the tool's telemetry off and allows only `npx -y modern-web-guidance@latest *`.
