@@ -259,7 +259,7 @@
   {:else}
     <div class="bar">
       {#if views.length > 0}
-        <label>
+        <label data-hint={t('hint.form.views.which')}>
           <span id="views-which">{t('views.which')}</span>
           <select
             aria-labelledby="views-which"
@@ -281,7 +281,7 @@
         </p>
       {:else if views.length > 0}
         <form class="inline" onsubmit={(e) => (e.preventDefault(), void rename())}>
-          <label>
+          <label data-hint={t('hint.form.views.rename')}>
             <span>{t('views.rename')}</span>
             <input type="text" bind:value={renaming} placeholder={current?.title ?? ''} maxlength="300" />
           </label>
@@ -302,21 +302,21 @@
     <details class="new" bind:open={newOpen}>
       <summary>{t('views.new')}</summary>
       <form onsubmit={(e) => (e.preventDefault(), void make())}>
-        <label><span>{t('views.new.title')}</span><input type="text" bind:value={title} maxlength="300" required /></label>
-        <label>
+        <label data-hint={t('hint.form.views.new.title')}><span>{t('views.new.title')}</span><input type="text" bind:value={title} maxlength="300" required /></label>
+        <label data-hint={t('hint.form.views.new.display')}>
           <span>{t('views.new.display')}</span>
           <select bind:value={display}>
             {#each ['columns', 'list', 'matrix'] as const as d (d)}<option value={d}>{t(`views.display.${d}`)}</option>{/each}
           </select>
         </label>
-        <label>
+        <label data-hint={t('hint.form.views.new.group_by')}>
           <span>{t('views.new.group_by')}</span>
           <select bind:value={groupBy}>
             {#each app.groupings?.fields ?? [] as g (keyOf(g))}<option value={keyOf(g)}>{fieldName(g)}</option>{/each}
           </select>
         </label>
         {#if display === 'matrix'}
-          <label>
+          <label data-hint={t('hint.form.views.new.group_by2')}>
             <span>{t('views.new.group_by2')}</span>
             <select bind:value={groupBy2}>
               {#each (app.groupings?.fields ?? []).filter((g) => keyOf(g) !== groupBy) as g (keyOf(g))}<option value={keyOf(g)}>{fieldName(g)}</option>{/each}

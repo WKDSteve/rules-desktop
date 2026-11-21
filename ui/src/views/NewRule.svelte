@@ -141,7 +141,7 @@
     }}
   >
     <h2>{t('new.label')}</h2>
-    <label>
+    <label data-hint={t('hint.form.new.family')}>
       {t('new.family')}
       <input type="text" list="new-rule-families" bind:value={family} bind:this={familyInput} autocomplete="off" />
       <datalist id="new-rule-families">
@@ -151,29 +151,29 @@
     <p class="muted" role="status">
       {#if family.trim() !== ''}{next ? t('new.next', { id: next }) : t('new.next_none')}{/if}
     </p>
-    <label>
+    <label data-hint={t('hint.form.edit.title')}>
       {t('edit.title')}
       <input type="text" bind:value={title} />
     </label>
-    <label>
+    <label data-hint={t('hint.form.edit.severity')}>
       {t('edit.severity')}
       <select bind:value={severity}>
         {#each SEVERITIES as value (value)}<option {value}>{t(`severity.${value}`)}</option>{/each}
       </select>
     </label>
-    <label>
+    <label data-hint={t('hint.form.edit.text')}>
       {t('edit.text')}
       <textarea rows="6" bind:value={text}></textarea>
     </label>
-    <label>
+    <label data-hint={t('hint.form.edit.check')}>
       {t('edit.check')}
       <textarea rows="3" class="mono" bind:value={check}></textarea>
     </label>
-    <label>
+    <label data-hint={t('hint.form.edit.agent')}>
       {t('edit.agent')}
       <textarea rows="2" class="mono" bind:value={agent}></textarea>
     </label>
-    <label>
+    <label data-hint={t('hint.form.new.ruleset')}>
       {t('new.ruleset')}
       <input type="text" bind:value={ruleset} />
     </label>

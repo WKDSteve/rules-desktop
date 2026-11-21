@@ -126,11 +126,11 @@
                       void renew(item.id);
                     }}
                   >
-                    <label>
+                    <label data-hint={t('hint.form.waiver.renew_to')}>
                       {t('waiver.renew_to')}
                       <input type="text" bind:value={renewTo} disabled={renewNone} placeholder="2027-01-31" />
                     </label>
-                    <label class="check">
+                    <label class="check" data-hint={t('hint.form.waiver.renew_none')}>
                       <input type="checkbox" bind:checked={renewNone} />
                       {t('waiver.renew_none')}
                     </label>
@@ -152,22 +152,22 @@
         void add();
       }}
     >
-      <label>
+      <label data-hint={t('hint.form.waiver.id')}>
         {t('waiver.id')}
         <input type="text" list="waiver-rules" bind:value={id} autocomplete="off" />
         <datalist id="waiver-rules">
           {#each app.rules as rule (rule.id)}<option value={rule.id}></option>{/each}
         </datalist>
       </label>
-      <label>
+      <label data-hint={t('hint.form.waiver.reason')}>
         {t('waiver.reason')}
         <input type="text" bind:value={reason} />
       </label>
-      <label>
+      <label data-hint={t('hint.form.waiver.expires')}>
         {t('waiver.expires')}
         <input type="text" bind:value={expires} placeholder="2027-01-31" />
       </label>
-      <label>
+      <label data-hint={t('hint.form.waiver.paths')}>
         {t('waiver.paths')}
         <textarea rows="3" bind:value={paths}></textarea>
       </label>

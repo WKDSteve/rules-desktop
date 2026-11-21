@@ -131,7 +131,7 @@
         void makeRuleset();
       }}
     >
-      <label>
+      <label data-hint={t('hint.form.rulesets.create_name')}>
         {t('rulesets.create_name')}
         <input type="text" bind:value={newRuleset} autocomplete="off" />
       </label>
@@ -169,7 +169,7 @@
           <tr>
             <th scope="row"><code>{shownText(entry.key)}</code></th>
             <td>
-              <select aria-label={`${entry.key}: ${t('classes.class')}`} value={entry.class} onchange={(e) => void change(e.currentTarget, { key: entry.key }, entry.class)}>
+              <select data-hint={t('hint.form.classes.row')} aria-label={`${entry.key}: ${t('classes.class')}`} value={entry.class} onchange={(e) => void change(e.currentTarget, { key: entry.key }, entry.class)}>
                 {#each CLASSES as value (value)}<option {value}>{t(classLabel(value))}</option>{/each}
               </select>
             </td>
@@ -182,6 +182,7 @@
           <td>
             <select
               aria-label={`${t('classes.default')}: ${t('classes.class')}`}
+              data-hint={t('hint.form.classes.default')}
               value={doc.default ?? ''}
               onchange={(e) => void change(e.currentTarget, { default: true }, doc.default ?? '')}
             >
@@ -203,14 +204,14 @@
         void add();
       }}
     >
-      <label>
+      <label data-hint={t('hint.form.classes.add_key')}>
         {t('classes.add_key')}
         <input type="text" list="source-starts" bind:value={newKey} autocomplete="off" />
         <datalist id="source-starts">
           {#each startsOf as start (start)}<option value={start}></option>{/each}
         </datalist>
       </label>
-      <label>
+      <label data-hint={t('hint.form.classes.class')}>
         {t('classes.class')}
         <select bind:value={newClass}>
           {#each CLASSES as value (value)}<option {value}>{t(classLabel(value))}</option>{/each}

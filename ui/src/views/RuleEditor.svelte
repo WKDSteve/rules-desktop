@@ -57,7 +57,7 @@
     void save();
   }}
 >
-  <label>
+  <label data-hint={t('hint.form.edit.severity')}>
     {t('edit.severity')}
     <select bind:value={draft.severity}>
       {#each SEVERITIES as severity (severity)}
@@ -65,20 +65,20 @@
       {/each}
     </select>
   </label>
-  <label>
+  <label data-hint={t('hint.form.edit.title')}>
     {t('edit.title')}
     <input type="text" bind:value={draft.title} />
   </label>
-  <label>
+  <label data-hint={t('hint.form.edit.text')}>
     {t('edit.text')}
     <textarea rows="8" bind:value={draft.text}></textarea>
   </label>
   {#if rule.editable}
-    <label>
+    <label data-hint={t('hint.form.edit.check')}>
       {t('edit.check')}
       <textarea rows="4" class="mono" bind:value={draft.check}></textarea>
     </label>
-    <label>
+    <label data-hint={t('hint.form.edit.agent')}>
       {t('edit.agent')}
       <textarea rows="3" class="mono" bind:value={draft.agent}></textarea>
     </label>
@@ -98,13 +98,13 @@
 {#if moving}
   <div class="retire">
     <p class="muted">{t('move.hint')}</p>
-    <label>
+    <label data-hint={t('hint.form.move.where')}>
       <select bind:value={moveWhere} aria-label={t('move.open')}>
         <option value="after">{t('move.after')}</option>
         <option value="before">{t('move.before')}</option>
       </select>
     </label>
-    <label>
+    <label data-hint={t('hint.form.move.target')}>
       {t('move.target')}
       <input type="text" bind:value={moveTo} />
     </label>
@@ -115,11 +115,11 @@
 {#if retiring}
   <div class="retire">
     <p class="muted">{t('retire.hint')}</p>
-    <label>
+    <label data-hint={t('hint.form.retire.reason')}>
       {t('retire.reason')}
       <input type="text" bind:value={reason} />
     </label>
-    <label>
+    <label data-hint={t('hint.form.retire.replaced_by')}>
       {t('retire.replaced_by')}
       <input type="text" bind:value={replacedBy} />
     </label>

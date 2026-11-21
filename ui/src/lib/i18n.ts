@@ -318,6 +318,78 @@ const en = {
   'palette.label': 'Command or rule',
   'palette.action': 'Action',
   'help.keys': 'Keys: g h / g f / g l / g c / g w / g s views, j k move, Enter open, / search, Esc close, Ctrl+K palette',  'notice.pair_rate_limited': 'The hub refused too many pairing attempts. Wait a minute, then ask the hub for a new link.',
+  'hint.form.new.family':
+    'The family is the letter prefix of the rule id, for example DEP. A new family starts a new series; an existing one takes the next free number.',
+  'hint.form.edit.title':
+    'One line that names the rule. It shows in lists and in the overview, for example: No unpinned dependencies.',
+  'hint.form.edit.severity':
+    'How serious a breach is. It sorts the lists and decides what a check reports as an error.',
+  'hint.form.edit.text':
+    'The wording of the rule: what is required and why. Write it so that someone who has never seen the repo can follow it.',
+  'hint.form.edit.check':
+    'The mechanical check as JSON, for example a command or a pattern. Empty means the rule is judged by a person or an agent.',
+  'hint.form.edit.agent':
+    'The question an agent answers to judge the rule, as JSON. Empty takes it away.',
+  'hint.form.new.ruleset':
+    'The rule set (a name) the rule is written into. Empty takes the first one.',
+  'hint.form.move.where':
+    'Whether the rule moves before or after the target rule.',
+  'hint.form.move.target':
+    'The id of the rule next to which this one is put, for example DEP-03.',
+  'hint.form.retire.reason':
+    'Why the rule goes. Optional, but it helps whoever reads the history later.',
+  'hint.form.retire.replaced_by':
+    'The id of the rule that takes its place, for example DEP-07. Leave empty if none does.',
+  'hint.form.intent':
+    'Paste an intent (wkd-intent/1) here. It opens a rule or the form of a new one; nothing is written until you save.',
+  'hint.form.filter.family':
+    'Shows only the rules of the chosen families. Nothing chosen shows all.',
+  'hint.form.filter.severity':
+    'Shows only the rules of the chosen severities. Nothing chosen shows all.',
+  'hint.form.filter.check':
+    'Shows only the rules with the chosen kind of check. Nothing chosen shows all.',
+  'hint.form.filter.search':
+    'Searches the title and the text of every rule while you type, for example: pinned.',
+  'hint.form.bulk.severity':
+    'The severity the marked rules get when you apply it.',
+  'hint.form.bulk.mark_all':
+    'Marks every shown rule that can be written, or clears the marks.',
+  'hint.form.bulk.mark':
+    'Marks this rule for a change of several rules at once.',
+  'hint.form.rulesets.create_name':
+    'The name of the new rule set, for example gamma. It is the start of the file name.',
+  'hint.form.classes.row':
+    'The class of the sources that start with this name.',
+  'hint.form.classes.default':
+    'The class of every source that no entry above matches.',
+  'hint.form.classes.add_key':
+    'How the source name starts, for example gamma. Every source that starts so gets the class below.',
+  'hint.form.classes.class':
+    'The class the sources get: it decides how they count in the coverage.',
+  'hint.form.views.which':
+    'Chooses which saved view is drawn.',
+  'hint.form.views.rename':
+    'The new title of the chosen view. Rename applies it.',
+  'hint.form.views.new.title':
+    'The title of the new view, for example Open waivers.',
+  'hint.form.views.new.display':
+    'How the view is drawn: as columns, as a list or as a matrix of two fields.',
+  'hint.form.views.new.group_by':
+    'The field the rules are grouped by, for example family or severity.',
+  'hint.form.views.new.group_by2':
+    'The second field of the matrix: it forms the other axis.',
+  'hint.form.waiver.renew_to':
+    'The new last day of the waiver as YYYY-MM-DD, for example 2027-01-31.',
+  'hint.form.waiver.renew_none':
+    'Renews the waiver without an end: it then holds until someone takes it back.',
+  'hint.form.waiver.id':
+    'The id of the rule that is waived, for example DEP-03. The list offers the known ids.',
+  'hint.form.waiver.reason':
+    'Why the rule does not apply here. Required: a waiver without a reason is not taken.',
+  'hint.form.waiver.expires':
+    'The last day the waiver holds, as YYYY-MM-DD, for example 2027-01-31. Empty means no end.',
+  'hint.form.waiver.paths':
+    'The paths the waiver covers, one per line, for example src/legacy/. Empty covers the whole rule.',
 };
 
 export type Key = keyof typeof en;
@@ -634,6 +706,78 @@ const de: Record<Key, string> = {
   'palette.label': 'Befehl oder Regel',
   'palette.action': 'Aktion',
   'help.keys': 'Tasten: g h / g f / g l / g c / g w / g s Ansichten, j k bewegen, Enter öffnen, / Suche, Esc schließen, Strg+K Palette',  'notice.pair_rate_limited': 'Der Hub hat zu viele Kopplungsversuche abgewiesen. Eine Minute warten, dann einen neuen Link vom Hub holen.',
+  'hint.form.new.family':
+    'Die Familie ist das Buchstaben-Präfix der Regel-ID, zum Beispiel DEP. Eine neue Familie beginnt eine neue Reihe, eine vorhandene bekommt die nächste freie Nummer.',
+  'hint.form.edit.title':
+    'Eine Zeile, die die Regel benennt. Sie steht in Listen und in der Übersicht, zum Beispiel: Keine ungepinnten Abhängigkeiten.',
+  'hint.form.edit.severity':
+    'Wie schwer ein Verstoß wiegt. Sie sortiert die Listen und bestimmt, was eine Prüfung als Fehler meldet.',
+  'hint.form.edit.text':
+    'Der Wortlaut der Regel: was verlangt wird und warum. So schreiben, dass jemand ohne Kenntnis des Repos es versteht.',
+  'hint.form.edit.check':
+    'Die maschinelle Prüfung als JSON, zum Beispiel ein Befehl oder ein Muster. Leer heißt: Ein Mensch oder ein Agent beurteilt die Regel.',
+  'hint.form.edit.agent':
+    'Die Frage, die ein Agent zur Beurteilung der Regel beantwortet, als JSON. Leer entfernt sie.',
+  'hint.form.new.ruleset':
+    'Das Regelwerk (ein Name), in das die Regel geschrieben wird. Leer nimmt das erste.',
+  'hint.form.move.where':
+    'Ob die Regel vor oder hinter die Zielregel rückt.',
+  'hint.form.move.target':
+    'Die ID der Regel, neben die diese gesetzt wird, zum Beispiel DEP-03.',
+  'hint.form.retire.reason':
+    'Warum die Regel entfällt. Optional, hilft aber, wenn jemand später die Geschichte liest.',
+  'hint.form.retire.replaced_by':
+    'Die ID der Regel, die ihren Platz einnimmt, zum Beispiel DEP-07. Leer, wenn keine es tut.',
+  'hint.form.intent':
+    'Hier eine Absicht (wkd-intent/1) einfügen. Sie öffnet eine Regel oder das Formular einer neuen; geschrieben wird erst beim Speichern.',
+  'hint.form.filter.family':
+    'Zeigt nur die Regeln der gewählten Familien. Ohne Auswahl werden alle gezeigt.',
+  'hint.form.filter.severity':
+    'Zeigt nur die Regeln der gewählten Schweregrade. Ohne Auswahl werden alle gezeigt.',
+  'hint.form.filter.check':
+    'Zeigt nur die Regeln mit der gewählten Art der Prüfung. Ohne Auswahl werden alle gezeigt.',
+  'hint.form.filter.search':
+    'Durchsucht Titel und Text jeder Regel beim Tippen, zum Beispiel: gepinnt.',
+  'hint.form.bulk.severity':
+    'Der Schweregrad, den die markierten Regeln beim Anwenden bekommen.',
+  'hint.form.bulk.mark_all':
+    'Markiert jede angezeigte Regel, die geschrieben werden darf, oder nimmt die Markierungen zurück.',
+  'hint.form.bulk.mark':
+    'Markiert diese Regel für eine Änderung mehrerer Regeln auf einmal.',
+  'hint.form.rulesets.create_name':
+    'Der Name des neuen Regelwerks, zum Beispiel gamma. Er ist der Anfang des Dateinamens.',
+  'hint.form.classes.row':
+    'Die Klasse der Quellen, die mit diesem Namen beginnen.',
+  'hint.form.classes.default':
+    'Die Klasse jeder Quelle, auf die kein Eintrag oben passt.',
+  'hint.form.classes.add_key':
+    'Wie der Name der Quelle beginnt, zum Beispiel gamma. Jede Quelle, die so beginnt, bekommt die Klasse darunter.',
+  'hint.form.classes.class':
+    'Die Klasse, die die Quellen bekommen: Sie bestimmt, wie sie in der Abdeckung zählen.',
+  'hint.form.views.which':
+    'Wählt, welche gespeicherte Ansicht gezeichnet wird.',
+  'hint.form.views.rename':
+    'Der neue Titel der gewählten Ansicht. Umbenennen wendet ihn an.',
+  'hint.form.views.new.title':
+    'Der Titel der neuen Ansicht, zum Beispiel Offene Ausnahmen.',
+  'hint.form.views.new.display':
+    'Wie die Ansicht gezeichnet wird: als Spalten, als Liste oder als Matrix aus zwei Feldern.',
+  'hint.form.views.new.group_by':
+    'Das Feld, nach dem die Regeln gruppiert werden, zum Beispiel Familie oder Schweregrad.',
+  'hint.form.views.new.group_by2':
+    'Das zweite Feld der Matrix: Es bildet die andere Achse.',
+  'hint.form.waiver.renew_to':
+    'Der neue letzte Tag der Ausnahme als JJJJ-MM-TT, zum Beispiel 2027-01-31.',
+  'hint.form.waiver.renew_none':
+    'Verlängert die Ausnahme ohne Ende: Sie gilt dann, bis jemand sie zurücknimmt.',
+  'hint.form.waiver.id':
+    'Die ID der Regel, für die die Ausnahme gilt, zum Beispiel DEP-03. Die Liste bietet die bekannten IDs an.',
+  'hint.form.waiver.reason':
+    'Warum die Regel hier nicht gilt. Pflicht: Eine Ausnahme ohne Grund wird nicht angenommen.',
+  'hint.form.waiver.expires':
+    'Der letzte Tag, an dem die Ausnahme gilt, als JJJJ-MM-TT, zum Beispiel 2027-01-31. Leer heißt: ohne Ende.',
+  'hint.form.waiver.paths':
+    'Die Pfade, für die die Ausnahme gilt, einer pro Zeile, zum Beispiel src/legacy/. Leer deckt die ganze Regel.',
 };
 
 export const dictionaries: Record<Lang, Record<Key, string>> = { en, de };

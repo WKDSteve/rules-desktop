@@ -63,7 +63,7 @@
   <details class="intent">
     <summary>{t('intent.title')}</summary>
     <p>{t('intent.hint')}</p>
-    <textarea rows="4" aria-label={t('intent.title')} bind:value={intentText}></textarea>
+    <textarea rows="4" data-hint={t('hint.form.intent')} aria-label={t('intent.title')} bind:value={intentText}></textarea>
     <button
       type="button"
       onclick={() => {
@@ -82,6 +82,7 @@
   <div class="bar" role="group" aria-label={t('filter.label')}>
     <MultiSelect
       label={t('filter.family')}
+      hint={t('hint.form.filter.family')}
       options={familyOptions}
       selected={app.filter.families}
       onchange={(families) => app.setFilter({ ...app.filter, families })}
@@ -91,6 +92,7 @@
     />
     <MultiSelect
       label={t('filter.severity')}
+      hint={t('hint.form.filter.severity')}
       options={severityOptions}
       selected={app.filter.severities}
       onchange={(severities) => app.setFilter({ ...app.filter, severities })}
@@ -100,6 +102,7 @@
     />
     <MultiSelect
       label={t('filter.check')}
+      hint={t('hint.form.filter.check')}
       options={checkOptions}
       selected={app.filter.checkKinds}
       onchange={(checkKinds) => app.setFilter({ ...app.filter, checkKinds })}
@@ -111,6 +114,7 @@
       <input
         bind:this={search}
         type="search"
+        data-hint={t('hint.form.filter.search')}
         aria-label={t('filter.search')}
         placeholder={t('filter.search')}
         value={app.filter.query}
@@ -145,7 +149,7 @@
   {#if app.marked.size > 0}
     <div class="bulk" role="group" aria-label={t('bulk.marked', { n: app.marked.size })}>
       <span>{t('bulk.marked', { n: app.marked.size })}</span>
-      <label>
+      <label data-hint={t('hint.form.bulk.severity')}>
         <span class="sr">{t('bulk.severity')}</span>
         <select bind:value={bulkSeverity}>
           {#each SEVERITIES as value (value)}<option {value}>{t(`severity.${value}`)}</option>{/each}
@@ -167,6 +171,7 @@
             <input
               type="checkbox"
               aria-label={t('bulk.mark_all')}
+              data-hint={t('hint.form.bulk.mark_all')}
               checked={allMarked}
               disabled={writable.length === 0}
               onchange={(e) => app.markShown(e.currentTarget.checked)}
@@ -187,6 +192,7 @@
               <input
                 type="checkbox"
                 aria-label={t('bulk.mark', { id: rule.id })}
+                data-hint={t('hint.form.bulk.mark')}
                 checked={app.marked.has(rule.id)}
                 disabled={!app.canWrite(rule)}
                 onchange={() => app.toggleMark(rule.id)}
