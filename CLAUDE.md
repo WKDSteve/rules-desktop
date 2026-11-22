@@ -32,3 +32,4 @@ processes and releasing: [docs/](docs/).
 - The scanner is an exact devDependency of `ui` (the policy of `ui/pnpm-workspace.yaml` applies):
   `cd ui && DISABLE_TELEMETRY=1 pnpm exec modern-web-guidance legacy-scan src --json`; CI runs it as an informative
   step. `.claude/settings.json` turns the tool's telemetry off and allows only `npx -y modern-web-guidance@latest *`.
+- Git: in a cloud session (`CLAUDE_CODE_REMOTE` is set) never push to `main`, only to your own `claude/…` branch; a local session lands it by rebase and the device key re-signs it (`GIT-09`). "Push to main" (`GIT-01`) applies locally only.
