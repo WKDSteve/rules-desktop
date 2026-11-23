@@ -1262,3 +1262,22 @@ fn the_common_commands_say_whether_the_hub_runs_and_restart_and_quit_work() {
     assert!(gone_within(&config, port, Duration::from_secs(20)));
     assert_eq!(run(&config, &["status"]).status.code(), Some(1));
 }
+
+#[test]
+fn completions_print_a_script_for_each_shell_and_refuse_another() {
+    let config = config_dir("completions", None);
+    for (shell, needle) in [
+        ("bash", "complete -F"),
+        ("powershell", "Register-ArgumentCompleter"),
+    ] {
+        let out = run(&config, &["completions", shell]);
+        assert!(out.status.success(), "{shell}: {out:?}");
+        let script = String::from_utf8_lossy(&out.stdout).into_owned();
+        assert!(script.contains(needle), "{shell}: {script}");
+        for word in ["status", "stop", "serve", "install", "rules-desktop"] {
+            assert!(script.contains(word), "{shell} lacks {word}: {script}");
+        }
+    }
+    let out = run(&config, &["completions", "zsh"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+}

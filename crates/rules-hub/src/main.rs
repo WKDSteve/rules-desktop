@@ -47,6 +47,14 @@ const OWN_USAGE: [(&str, &str); 4] = [
     ),
 ];
 
+/// The own commands of the app, for the tab completion (`usage` explains `areas`).
+fn own_words() -> Vec<&'static str> {
+    OWN_USAGE
+        .iter()
+        .map(|(name, _)| if *name == "usage" { "areas" } else { *name })
+        .collect()
+}
+
 /// The text of `help`: the common commands, then the own ones, then what the background hub does.
 fn usage() -> String {
     let mut out = String::from("usage:\n");
@@ -214,6 +222,10 @@ async fn run(args: Vec<String>) -> Result<i32, Failed> {
             Box::pin(cli::logs(&background::APP, lines, follow)).await?;
         }
         Verb::Paths => print!("{}", cli::paths(&background::APP)),
+        Verb::Completions(shell) => print!(
+            "{}",
+            cli::completions_script(shell, &[COMMAND, "rules-hub"], &own_words())
+        ),
         Verb::Version => println!("{}", rules_hub::version_line()),
         Verb::Help(None) => println!("{}", usage()),
         Verb::Help(Some(command)) => match help_of(&command) {

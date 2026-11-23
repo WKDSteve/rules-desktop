@@ -89,11 +89,15 @@ rules-desktop link            print a one-time pairing link (for a phone, a tunn
 rules-desktop logs [-f]       the end of the log of the hub in the background
 rules-desktop paths           where the program, the settings and the log are
 rules-desktop help [<cmd>]    all commands, or one
+rules-desktop completions <shell>  tab completion script for powershell or bash
 rules-desktop serve [--port N]                 run the hub until Ctrl-C
 rules-desktop autostart on|off|status
 rules-desktop install [--autostart] [--shortcut]
 rules-desktop uninstall [--purge-settings]
 ```
+
+Tab completion: put `rules-desktop completions powershell | Out-String | Invoke-Expression` in your PowerShell profile (`$PROFILE`),
+or `source <(rules-desktop completions bash)` in `~/.bashrc`.
 
 Exit codes: 0 done, 1 failed, 2 wrong arguments. `open` printed the pairing link in earlier versions; that is `link`
 now, and `open --launch` still works and does what `open` does.
