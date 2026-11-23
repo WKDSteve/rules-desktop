@@ -7,9 +7,9 @@ vault for now. The page follows the files and shows every change by itself.
 
 ## 1. Start
 
-1. `rules-hub start` (once per login, or `rules-hub autostart on`). If it does not start, the log in the config folder
+1. `rules-desktop start` (once per login, or `rules-desktop autostart on`). If it does not start, the log in the config folder
    says why: usually Neovim older than 0.12, or `RULES_VAULT` pointing at a folder without `rulesets/`.
-2. `rules-hub open --launch` opens a one-time link in the browser. The page takes the pairing code out of the address
+2. `rules-desktop open` opens a one-time link in the browser. The page takes the pairing code out of the address
    at once and keeps the session in this tab only. A second tab needs a second `open`.
 3. The status in the menu bar says **live** when the page follows the rule files.
 

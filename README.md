@@ -72,23 +72,38 @@ file held for a moment). `python tools/check-temp-leftovers.py` lists what is le
 
 ## Running the hub
 
-The program is `rules-hub`; its verbs are those of `tasks-hub`:
+`install` (every way: the install line, `scripts\build-install.ps1`) makes the program a command named after the
+app, `rules-desktop`, in every new terminal (PowerShell, cmd, Git Bash): a starter in
+`%LOCALAPPDATA%\appkit-family\bin`, which goes on the PATH of your user once; `uninstall` takes it away. It is the
+same program as `rules-hub` below, so every command works under both names, and the verbs are those of the other hub
+apps:
 
 ```
-rules-hub serve [--port N]      run the hub until Ctrl-C
-rules-hub start [--open]        run it in the background (log in the config folder)
-rules-hub stop                  stop that hub
-rules-hub open [--launch]       print (or open) a one-time pairing link
-rules-hub autostart on|off|status
-rules-hub install [--autostart] [--shortcut]
-rules-hub uninstall [--purge-settings]
+rules-desktop                 start the hub when it does not run, and open the page
+rules-desktop open            the same: open the page, starting the hub first when needed
+rules-desktop start [--open]  run the hub in the background (log in the config folder)
+rules-desktop stop | quit     end it
+rules-desktop restart         stop, then start
+rules-desktop status [--json] does it run (process, port, version)? exit code 0 yes, 1 no
+rules-desktop link            print a one-time pairing link (for a phone, a tunnel or a script)
+rules-desktop logs [-f]       the end of the log of the hub in the background
+rules-desktop paths           where the program, the settings and the log are
+rules-desktop help [<cmd>]    all commands, or one
+rules-desktop serve [--port N]                 run the hub until Ctrl-C
+rules-desktop autostart on|off|status
+rules-desktop install [--autostart] [--shortcut]
+rules-desktop uninstall [--purge-settings]
 ```
+
+Exit codes: 0 done, 1 failed, 2 wrong arguments. `open` printed the pairing link in earlier versions; that is `link`
+now, and `open --launch` still works and does what `open` does.
 
 Without an argument (a double click, the link in the Start menu) it starts the hub in the background and opens
 the browser. The program of a rolling build or a release is a window program: a double click, the link and the
 login entry open no console window, and an error shows in a message box (a debug build is a console program).
-From a terminal it writes its output there, but the prompt comes back at once (the shell does not wait for a
-window program); a script that needs the output or the exit code pipes it, `(& rules-hub --version | Out-String).Trim()`.
+Called as `rules-hub.exe` from a terminal it writes its output there, but the prompt comes back at once (the shell
+does not wait for a window program), so a script needs `(& rules-hub --version | Out-String).Trim()`. The command
+`rules-desktop` has no such trap: its starter waits for the program and hands its output and exit code back.
 
 A hub in the background has no window to close, so it ends itself: a while after the last page closed (ten minutes;
 `RULES_DESKTOP_ALONE_SECS` sets it), unless it has an order to stay: it starts with your login, a device is paired

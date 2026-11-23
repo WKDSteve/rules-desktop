@@ -208,7 +208,7 @@ async function waitUntilReady(config: string): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, 200));
   }
-  // The port answers before `hub.json` is written, and `rules-hub open` (the pairing of the tests) needs that file.
+  // The port answers before `hub.json` is written, and `rules-desktop link` (the pairing of the tests) needs that file.
   while (!existsSync(join(config, 'hub.json'))) {
     if (Date.now() > deadline) throw new Error('the hub answers but wrote no hub.json');
     await new Promise((r) => setTimeout(r, 100));
@@ -231,9 +231,9 @@ export async function sessionToken(config: string): Promise<string> {
   return ((await response.json()) as { token: string }).token;
 }
 
-/** A pairing link, as `rules-hub open` prints it. */
+/** A pairing link, as `rules-desktop link` prints it. */
 export function pairingLink(config: string): string {
-  const out = execFileSync(exe, ['open'], { env: env(config), encoding: 'utf8' });
+  const out = execFileSync(exe, ['link'], { env: env(config), encoding: 'utf8' });
   const link = out.trim().split(/\r?\n/)[0] ?? '';
   if (!link.startsWith(`${ORIGIN}/#pair=`)) throw new Error(`unexpected link: ${link}`);
   return link;

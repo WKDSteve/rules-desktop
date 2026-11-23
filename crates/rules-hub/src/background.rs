@@ -11,7 +11,7 @@ pub use appkit_hub::background::{Autostart, InstallOptions, UninstallOptions};
 const EXTRA_FILES: [&str; 1] = ["sources.json"];
 
 /// What the background commands know about this app.
-pub(crate) const APP: Background<'static> = Background {
+pub const APP: Background<'static> = Background {
     login: crate::LOGIN,
     extra_files: &EXTRA_FILES,
     uninstall_script: "scripts/uninstall.ps1 or scripts/uninstall.sh",

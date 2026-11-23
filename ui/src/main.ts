@@ -69,7 +69,7 @@ if (channel) {
 installTooltips(document, window, { regionLabel: () => 'hints' });
 mount(App, { target, props: { app: state, code } });
 
-// A link of `rules-hub open` pasted into a tab that is already open changes only the fragment: no reload. The
+// A link of `rules-desktop link` pasted into a tab that is already open changes only the fragment: no reload. The
 // page starts again with the new code; what ran before is stopped first.
 window.addEventListener('hashchange', () => {
   // A place typed into the address is not the pairing's: it stays (the history goes to it).

@@ -103,18 +103,26 @@ fn the_version_is_the_name_and_the_number() {
 #[test]
 fn an_unknown_verb_prints_the_usage_and_fails() {
     let out = run(&config_dir("unknown", None), &["frobnicate"]);
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(2));
     let err = text(&out.stderr);
     for verb in [
         "serve",
         "start",
         "stop",
+        "restart",
+        "status",
         "open",
+        "link",
+        "logs",
+        "paths",
         "autostart",
         "install",
         "uninstall",
     ] {
-        assert!(err.contains(&format!("rules-hub {verb}")), "{verb}: {err}");
+        assert!(
+            err.contains(&format!("rules-desktop {verb}")),
+            "{verb}: {err}"
+        );
     }
     // The usage names this program and not the tasks hub.
     assert!(!err.contains("tasks"), "{err}");
@@ -132,15 +140,18 @@ fn a_bad_port_or_a_stray_argument_is_refused_before_anything_starts() {
         &["install", "--bogus"],
         &["uninstall", "--bogus"],
         &["open", "--bogus"],
+        &["close"],
+        &["logs", "-n", "0"],
+        &["help", "frobnicate"],
     ] {
         let out = run(&dir, args);
-        assert_eq!(out.status.code(), Some(1), "{args:?}");
+        assert_eq!(out.status.code(), Some(2), "{args:?}");
     }
 }
 
 #[test]
 fn open_without_a_running_hub_says_so() {
-    let out = run(&config_dir("norun", None), &["open"]);
+    let out = run(&config_dir("norun", None), &["link"]);
     assert_eq!(out.status.code(), Some(1));
     assert!(text(&out.stderr).contains("no hub is running"));
 }
@@ -212,7 +223,7 @@ fn serve_in(dir: Scratch) -> Running {
 }
 
 async fn token(running: &Running) -> String {
-    let out = run(&running.dir, &["open"]);
+    let out = run(&running.dir, &["link"]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     let link = text(&out.stdout);
     let code = link.trim().split_once("#pair=").expect("a pairing link").1;
@@ -1059,7 +1070,7 @@ async fn a_hub_in_the_background_stays_while_a_page_is_connected_and_ends_after_
     start_in_background(&config, port, alone);
 
     // The page: a pairing link, its session, and a connection that stays open (as the event stream does).
-    let out = run(&config, &["open"]);
+    let out = run(&config, &["link"]);
     assert!(out.status.success(), "{out:?}");
     let link = text(&out.stdout);
     let code = link
@@ -1172,4 +1183,82 @@ fn the_program_is_the_watcher_of_its_childrens_groups() {
     let out = watcher.wait_with_output().unwrap();
     assert!(out.status.success(), "{out:?}");
     assert!(out.stdout.is_empty() && out.stderr.is_empty(), "{out:?}");
+}
+
+/// `help <command>` and `<command> --help`: a common command and an own one.
+#[test]
+fn help_of_one_command_is_its_own_text() {
+    let config = config_dir("help-one", None);
+    let said = |args: &[&str]| {
+        let out = run(&config, args);
+        assert!(out.status.success(), "{args:?}: {out:?}");
+        text(&out.stdout)
+    };
+    assert!(said(&["help", "status"]).starts_with("rules-desktop status [--json]"));
+    assert!(said(&["link", "--help"]).starts_with("rules-desktop link"));
+    assert!(said(&["help", "install"]).contains("make the"));
+    let all = said(&["--help"]);
+    for word in [
+        "rules-desktop restart",
+        "rules-desktop serve",
+        "rules-desktop uninstall",
+        "Exit codes",
+    ] {
+        assert!(all.contains(word), "{word}: {all}");
+    }
+}
+
+/// The commands every hub app shares, on the program: `status` (text, JSON, exit code 0 runs, 1 does not), `logs`,
+/// `paths`, `restart` (a new process) and `quit` as `stop`.
+#[test]
+fn the_common_commands_say_whether_the_hub_runs_and_restart_and_quit_work() {
+    let config = config_dir("common", None);
+    let port = free_port();
+    let _guard = Background(&config);
+
+    let off = run(&config, &["status"]);
+    assert_eq!(off.status.code(), Some(1), "{off:?}");
+    assert!(text(&off.stdout).starts_with("rules-desktop: not running\n"));
+
+    start_in_background(&config, port, 120);
+    let on = run(&config, &["status"]);
+    assert_eq!(on.status.code(), Some(0), "{on:?}");
+    let said = text(&on.stdout);
+    assert!(
+        said.starts_with("rules-desktop: running (process ")
+            && said.contains(&format!("port {port},")),
+        "{said}"
+    );
+    let json = run(&config, &["status", "--json"]);
+    let doc: Value = serde_json::from_slice(&json.stdout).unwrap();
+    assert_eq!(doc["running"], true);
+    assert_eq!(doc["port"], port);
+
+    let paths = run(&config, &["paths"]);
+    assert!(paths.status.success(), "{paths:?}");
+    assert!(text(&paths.stdout).contains(&format!("settings:  {}", config.display())));
+    let logs = run(&config, &["logs", "-n", "5"]);
+    assert!(logs.status.success(), "{logs:?}");
+
+    // `restart` ends the hub and starts another one (no login entry of the machine is asked).
+    let before = doc["pid"].clone();
+    let mut restart = without_system_entries(command(&config, &["restart"]));
+    let restarted = restart
+        .env("RULES_DESKTOP_PORT", port.to_string())
+        .env("RULES_DESKTOP_ALONE_SECS", "120")
+        .output()
+        .unwrap();
+    assert!(restarted.status.success(), "{restarted:?}");
+    let after: Value = serde_json::from_slice(&run(&config, &["status", "--json"]).stdout).unwrap();
+    assert_eq!(after["running"], true, "{restarted:?}");
+    assert_ne!(
+        after["pid"], before,
+        "the hub after restart is a new process"
+    );
+
+    // `quit` is `stop`.
+    let quit = run(&config, &["quit"]);
+    assert!(quit.status.success(), "{quit:?}");
+    assert!(gone_within(&config, port, Duration::from_secs(20)));
+    assert_eq!(run(&config, &["status"]).status.code(), Some(1));
 }

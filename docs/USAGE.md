@@ -22,14 +22,17 @@ the waivers view says so.
 ## Start
 
 ```
-rules-hub serve        # in the foreground, Ctrl-C stops it
-rules-hub start        # in the background; the log is in the config folder
-rules-hub open --launch   # a one-time link, opened in the default browser
-rules-hub stop
+rules-desktop open      # starts the hub when it does not run, and opens the page with a one-time link
+rules-desktop status    # does it run? exit code 0 yes, 1 no
+rules-desktop serve     # in the foreground, Ctrl-C stops it
+rules-desktop start     # in the background; the log is `rules-desktop logs`, in the config folder
+rules-desktop stop      # (also: quit)
 ```
 
-The first `open` prints a link `http://127.0.0.1:17616/#pair=...`. The page takes the code out of the address at once,
-trades it for a session and keeps the session in that tab only. A second tab needs a second `open`. The port is 17616
+`rules-desktop` is the command `install` makes for the program `rules-hub` (both names work; `rules-desktop help` lists
+every command). `rules-desktop link` prints the one-time link `http://127.0.0.1:17616/#pair=...` without opening it. The page
+takes the code out of the address at once, trades it for a session and keeps the session in that tab only. A second tab
+needs a second `open` (or `link`). The port is 17616
 (`RULES_DESKTOP_PORT`, `--port`, or `port` in `config.json`); when it is taken the hub says so and uses a free one.
 
 `rules-hub install [--autostart] [--shortcut]` copies the program to a fixed place and ends with the call that starts
@@ -85,8 +88,8 @@ Back and Forward of the browser walk through the views and the rules you opened.
 
 | You see | It means |
 | --- | --- |
-| "This tab is not paired with the hub." | Run `rules-hub open` and open its link in this tab. |
-| "The hub does not answer." | The hub is not running (`rules-hub start`) or runs on another port. |
+| "This tab is not paired with the hub." | Run `rules-desktop link` and open its link in this tab (or `rules-desktop open`). |
+| "The hub does not answer." | The hub is not running (`rules-desktop status`, `rules-desktop start`) or runs on another port. |
 | "The hub runs, but its engine is not ready: ..." | The word says why: `no_vault`, `nvim_not_found`, `engine_not_found`, `sources_invalid` ... Set the variables above. |
 | Every rule says "not classified" | There is no `sources.json`, or it names no key for these rule sets. |
 | "The hub is still reading the texts" | The first search comes a moment after the start; titles are searched meanwhile. |
