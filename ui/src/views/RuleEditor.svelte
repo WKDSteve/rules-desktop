@@ -76,11 +76,11 @@
   {#if rule.editable}
     <label data-hint={t('hint.form.edit.check')}>
       {t('edit.check')}
-      <textarea rows="4" class="mono" bind:value={draft.check}></textarea>
+      <textarea rows="4" class="mono" spellcheck="false" bind:value={draft.check}></textarea>
     </label>
     <label data-hint={t('hint.form.edit.agent')}>
       {t('edit.agent')}
-      <textarea rows="3" class="mono" bind:value={draft.agent}></textarea>
+      <textarea rows="3" class="mono" spellcheck="false" bind:value={draft.agent}></textarea>
     </label>
     <p class="muted">{t('edit.data_hint')}</p>
   {:else}
@@ -106,7 +106,7 @@
     </label>
     <label data-hint={t('hint.form.move.target')}>
       {t('move.target')}
-      <input type="text" bind:value={moveTo} />
+      <input type="text" spellcheck="false" bind:value={moveTo} />
     </label>
     <button type="button" disabled={app.writing || moveTo.trim() === ''} onclick={() => void move()}>{t('move.confirm')}</button>
   </div>
@@ -121,7 +121,7 @@
     </label>
     <label data-hint={t('hint.form.retire.replaced_by')}>
       {t('retire.replaced_by')}
-      <input type="text" bind:value={replacedBy} />
+      <input type="text" spellcheck="false" bind:value={replacedBy} />
     </label>
     <button type="button" disabled={app.writing} onclick={() => void retire()}>{t('retire.confirm')}</button>
   </div>

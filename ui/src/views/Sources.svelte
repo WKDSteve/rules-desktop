@@ -156,7 +156,7 @@
     >
       <label data-hint={t('hint.form.rulesets.create_name')}>
         {t('rulesets.create_name')}
-        <input type="text" bind:value={newRuleset} autocomplete="off" />
+        <input type="text" bind:value={newRuleset} autocomplete="off" spellcheck="false" />
       </label>
       <div><button type="submit" disabled={app.writing || newRuleset.trim() === ''}>{t('rulesets.create')}</button></div>
     </form>
@@ -229,7 +229,7 @@
     >
       <label data-hint={t('hint.form.classes.add_key')}>
         {t('classes.add_key')}
-        <input type="text" list="source-starts" bind:value={newKey} autocomplete="off" />
+        <input type="text" list="source-starts" bind:value={newKey} autocomplete="off" spellcheck="false" />
         <datalist id="source-starts">
           {#each startsOf as start (start)}<option value={start}></option>{/each}
         </datalist>

@@ -143,7 +143,7 @@
     <h2>{t('new.label')}</h2>
     <label data-hint={t('hint.form.new.family')}>
       {t('new.family')}
-      <input type="text" list="new-rule-families" bind:value={family} bind:this={familyInput} autocomplete="off" />
+      <input type="text" list="new-rule-families" bind:value={family} bind:this={familyInput} autocomplete="off" spellcheck="false" />
       <datalist id="new-rule-families">
         {#each families as name (name)}<option value={name}></option>{/each}
       </datalist>
@@ -167,15 +167,15 @@
     </label>
     <label data-hint={t('hint.form.edit.check')}>
       {t('edit.check')}
-      <textarea rows="3" class="mono" bind:value={check}></textarea>
+      <textarea rows="3" class="mono" spellcheck="false" bind:value={check}></textarea>
     </label>
     <label data-hint={t('hint.form.edit.agent')}>
       {t('edit.agent')}
-      <textarea rows="2" class="mono" bind:value={agent}></textarea>
+      <textarea rows="2" class="mono" spellcheck="false" bind:value={agent}></textarea>
     </label>
     <label data-hint={t('hint.form.new.ruleset')}>
       {t('new.ruleset')}
-      <input type="text" bind:value={ruleset} />
+      <input type="text" spellcheck="false" bind:value={ruleset} />
     </label>
 
     {#if problem}<p role="alert" class="bad">{t(problem)}</p>{/if}
