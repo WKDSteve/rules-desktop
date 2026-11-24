@@ -1012,6 +1012,22 @@ async fn a_stream_whose_session_is_closed_while_it_opens_is_not_greeted() {
     );
 }
 
+/// An open stream ends when its session signs out, not at the next heartbeat or change.
+#[tokio::test]
+async fn an_open_stream_ends_when_its_session_signs_out() {
+    let engine = FakeEngine::new();
+    let hub = start(&engine).await;
+    let mut stream = Stream::open(&hub).await;
+    stream.until("event: hello").await;
+    let r = post(&hub.server, "/api/session/logout", Some(&hub.token), "{}").await;
+    assert_eq!(r.status, 200, "{r:?}");
+    let started = std::time::Instant::now();
+    let seen = tokio::time::timeout(Duration::from_secs(3), stream.rest())
+        .await
+        .expect("the stream did not end within 3 s of the sign-out");
+    assert!(started.elapsed() < Duration::from_secs(3), "{seen}");
+}
+
 #[tokio::test]
 async fn without_an_engine_there_is_no_stream_no_search_and_no_rescan() {
     let hub = start_with(None, None).await;
@@ -1882,6 +1898,49 @@ async fn without_a_config_folder_the_classes_cannot_be_changed_and_without_a_ses
     assert_eq!(r.json()["error"]["code"], "not_configurable");
     let anonymous = post(&hub.server, &route("sources/class"), None, "{}").await;
     assert_eq!(anonymous.status, 401, "{anonymous:?}");
+}
+
+/// The raw answer of the event stream: `text/event-stream` with a charset, the policy without a
+/// document, and no cookie.
+#[tokio::test]
+async fn the_raw_stream_answer_has_its_type_its_policy_and_no_cookie() {
+    let engine = FakeEngine::new();
+    let hub = start(&engine).await;
+    let mut stream = Stream::open(&hub).await;
+    let text = stream.until("\r\n\r\n").await;
+    let head = text.split("\r\n\r\n").next().unwrap().to_ascii_lowercase();
+    assert!(head.starts_with("http/1.1 200"), "{head}");
+    assert!(
+        head.contains("content-type: text/event-stream; charset=utf-8"),
+        "{head}"
+    );
+    assert!(
+        head.contains("content-security-policy:") && head.contains("default-src 'none'"),
+        "{head}"
+    );
+    assert!(!head.contains("set-cookie"), "{head}");
+}
+
+/// A write the disk refuses is a 500 with a code and a fixed text: no path of the machine.
+#[tokio::test]
+async fn a_failed_write_of_the_config_is_a_500_without_a_path() {
+    let engine = FakeEngine::new();
+    let dir = temp_config("fail");
+    // A folder where the file belongs: the file can be written beside it but not put in its place.
+    std::fs::create_dir(dir.join("sources.json")).unwrap();
+    let policy = SourcePolicy::new([("Checklists".to_owned(), Class::Internal)]).unwrap();
+    let hub = start_with_config(&engine, policy, Some(dir.path())).await;
+    let r = hub
+        .set_class(json!({ "key": "Checklists", "class": "private" }))
+        .await;
+    assert_eq!(r.status, 500, "{r:?}");
+    assert_eq!(r.json()["error"]["code"], "write_failed");
+    let raw = r.raw.to_lowercase();
+    let folder = dir.path().to_string_lossy().to_lowercase();
+    assert!(!raw.contains(&folder), "{raw}");
+    assert!(!raw.contains("sources.json"), "{raw}");
+    assert!(!raw.contains("rules-desktop-"), "{raw}");
+    assert!(!raw.contains("set-cookie"), "{raw}");
 }
 
 #[tokio::test]

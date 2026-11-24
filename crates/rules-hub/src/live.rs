@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use appkit_hub::guard::SessionEnd;
 use appkit_hub::search::{self, Query, Status};
 use appkit_hub::streams::{sse_response, too_many_streams};
 use appkit_hub::{bearer, error_body, json_response, no_query};
@@ -10,6 +11,7 @@ use axum::extract::{RawQuery, State};
 use axum::http::header::HeaderMap;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Extension;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast, mpsc};
 
@@ -23,6 +25,7 @@ use crate::store::SHAPE;
 /// too slow for the buffer gets `resync` and reads everything again.
 pub(crate) async fn events(
     State(st): State<Arc<Shared>>,
+    Extension(end): Extension<SessionEnd>,
     RawQuery(query): RawQuery,
     headers: HeaderMap,
 ) -> Response {
@@ -77,6 +80,9 @@ pub(crate) async fn events(
                 },
                 _ = ticker.tick() => ": ping\n\n".to_owned(),
                 () = tx.closed() => return,
+                // The session was signed out, revoked or pushed out: the stream ends now, not at
+                // the next heartbeat. The sender is dropped when the task returns.
+                () = end.ended() => return,
             };
             // A session that was closed since the stream was opened takes its streams with it: no
             // id goes to a token that is no longer one.
