@@ -104,6 +104,24 @@ test('a tab without a session is told how to pair and is shown no rule', async (
   await expectAccessible(page, 'not paired');
 });
 
+test('the sign-out button is in every view and ends the session: the page is unpaired, the token is dead', async ({ page, request }) => {
+  await prepare(page);
+  await page.goto(pairingLink(state().config));
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  const token = await page.evaluate(() => sessionStorage.getItem('rules-desktop.session'));
+  expect(token).toMatch(/^[0-9a-f]{64}$/);
+  for (const view of ['overview', 'rules', 'families']) {
+    await page.goto(`/#view=${view}`);
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByText('This tab is not paired with the hub.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('rules-desktop.session'))).toBeNull();
+  const dead = await request.get(`${ORIGIN}/api/rules/snapshot`, { headers: { Authorization: `Bearer ${token}` } });
+  expect(dead.status()).toBe(401);
+});
+
 test('the data routes need a session and the page carries a strict policy', async ({ request }) => {
   for (const path of ['/api/rules/snapshot', '/api/rules/sources', '/api/rules/search?q=text', '/api/rules/events']) {
     expect((await request.get(path)).status(), path).toBe(401);

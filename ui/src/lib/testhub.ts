@@ -85,6 +85,8 @@ export class FakeHub {
   searchTotal: number | null = null;
   /** The states of the search index for the next searches, one each; then `ready`. */
   searchStates: ('ready' | 'building' | 'failed')[] = [];
+  /** `POST /api/session/logout` answers with this status (200: the session is closed). */
+  logoutStatus = 200;
   /** The stream is refused with this status (0: it is opened). */
   streamStatus = 0;
   /** The next answers of a path, one status each, before the path answers as usual. */
@@ -153,6 +155,9 @@ export class FakeHub {
         });
       case '/api/rules/rescan':
         return new Response(null, { status: 202 });
+      case '/api/session/logout':
+        this.tokens.delete(token);
+        return this.logoutStatus === 200 ? json({ ok: true }) : json({ error: { code: 'down', message: 'no' } }, this.logoutStatus);
       case '/api/rules/rulesets': {
         const answer = this.rulesetsAnswer();
         return json(answer.body, answer.status);

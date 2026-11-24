@@ -254,6 +254,24 @@ describe('a session that is gone', () => {
     expect(s.session.getItem(TOKEN_KEY)).toBeNull();
   });
 
+  it('signs out: the hub is asked, then the token and what was read are forgotten', async () => {
+    const s = await ready();
+    await s.app.signOut();
+    expect(s.fake.asked.some((a) => a.method === 'POST' && a.path === '/api/session/logout')).toBe(true);
+    expect(s.fake.tokens.has(TOKEN)).toBe(false);
+    expect(s.app.phase).toBe('needs_pairing');
+    expect(s.app.snapshot).toBeNull();
+    expect(s.session.getItem(TOKEN_KEY)).toBeNull();
+  });
+
+  it('signs out in the page even when the hub does not answer', async () => {
+    const s = await ready();
+    s.fake.logoutStatus = 500;
+    await s.app.signOut();
+    expect(s.app.phase).toBe('needs_pairing');
+    expect(s.session.getItem(TOKEN_KEY)).toBeNull();
+  });
+
   it('is told by a refused stream too', async () => {
     const s = setup();
     s.fake.streamStatus = 401;

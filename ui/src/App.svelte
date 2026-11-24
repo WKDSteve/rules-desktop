@@ -209,6 +209,11 @@
     </nav>
   {/if}
   <span class="connection" class:live={app.connection === 'live'} role="status">{t(`connection.${app.connection}`)}</span>
+  {#if app.phase !== 'starting' && app.phase !== 'needs_pairing'}
+    <!-- In every view: the bar is the same in all of them. The hub ends the session and its streams; the page then
+         shows the pairing state. -->
+    <button type="button" class="sign-out" onclick={() => void app.signOut()}>{t('session.sign_out')}</button>
+  {/if}
 </header>
 
 <DocsDialog
@@ -327,6 +332,19 @@
   }
   .connection.live {
     color: var(--ok);
+  }
+  .sign-out {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.15rem 0.6rem;
+    min-height: 1.5rem;
+    cursor: pointer;
+  }
+  @media (pointer: coarse) {
+    .sign-out {
+      min-height: 2.75rem;
+    }
   }
   main {
     padding: 1rem;

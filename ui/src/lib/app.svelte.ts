@@ -378,6 +378,19 @@ export class App {
     this.searchAbort?.abort();
   }
 
+  /**
+   * Sign this tab's session out: the hub is asked to end it (its streams end with it), and the page goes to the
+   * pairing state whatever the hub answers, also when it does not answer at all.
+   */
+  async signOut(): Promise<void> {
+    try {
+      await this.env.hub.post('/api/session/logout', {});
+    } catch {
+      // The hub is down or has forgotten the session already: the page forgets it either way.
+    }
+    this.lostSession();
+  }
+
   private lostSession(): void {
     safe(() => this.env.session.removeItem(TOKEN_KEY));
     this.env.hub.setToken(null);
