@@ -198,7 +198,7 @@
                 onchange={() => app.toggleMark(rule.id)}
               />
             </td>
-            <th scope="row"><code>{shownText(rule.id)}</code></th>
+            <th scope="row"><code translate="no">{shownText(rule.id)}</code></th>
             <td class="title">
               <button type="button" onclick={() => void app.openDetail(rule.id)}>{shownText(titleText(rule.title, rule.id))}</button>
             </td>

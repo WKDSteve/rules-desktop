@@ -58,7 +58,7 @@
     <dl>
       <dt>{t('detail.source')}</dt>
       <dd>
-        <code>{shownText(line)}</code>
+        <code translate="no">{shownText(line)}</code>
         <button type="button" onclick={() => void copy(line)}>{t('detail.copy')}</button>
         <button type="button" onclick={() => void app.openInEditor(rule.id)}>{t('detail.open')}</button>
         {#if copied !== 'idle'}<span role="status" class="muted">{copied === 'ok' ? t('detail.copied') : t('detail.copy_failed')}</span>{/if}
@@ -68,7 +68,7 @@
         <dd>{shownText(rule.section)}</dd>
       {/if}
       <dt>{t('detail.version')}</dt>
-      <dd><code>{shownText(rule.etag)}</code> ({t(`detail.scope.${rule.etag_scope}`)})</dd>
+      <dd><code translate="no">{shownText(rule.etag)}</code> ({t(`detail.scope.${rule.etag_scope}`)})</dd>
     </dl>
 
     {#if editing}
@@ -90,11 +90,11 @@
 
     {#if rule.check}
       <h3>{t('detail.check')}</h3>
-      <pre>{asJson(rule.check)}</pre>
+      <pre translate="no">{asJson(rule.check)}</pre>
     {/if}
     {#if rule.agent}
       <h3>{t('detail.agent')}</h3>
-      <pre>{asJson(rule.agent)}</pre>
+      <pre translate="no">{asJson(rule.agent)}</pre>
     {/if}
   {/if}
 </aside>

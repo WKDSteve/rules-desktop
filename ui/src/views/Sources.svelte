@@ -132,7 +132,7 @@
         <tbody>
           {#each app.rulesets.items as item (item.folder)}
             <tr id={`ruleset-${item.folder}`} use:contextTarget={selectionTarget(item.name, { rulesets: [item.name] })}>
-              <th scope="row"><code>{shownText(item.name)}</code></th>
+              <th scope="row"><code translate="no">{shownText(item.name)}</code></th>
               <td>{filesOf(item.name)}</td>
               <td>
                 {#if item.in_vault}
@@ -168,7 +168,7 @@
       <ul class="plain">
         {#each app.rulesets.archived as folder (folder)}
           <li id={`archived-${folder}`}>
-            <code>{shownText(folder)}</code>
+            <code translate="no">{shownText(folder)}</code>
             <button type="button" disabled={app.writing} onclick={() => void app.restoreRuleset(folder)}>{t('rulesets.restore')}</button>
           </li>
         {/each}
@@ -190,7 +190,7 @@
       <tbody>
         {#each doc.keys as entry (entry.key)}
           <tr>
-            <th scope="row"><code>{shownText(entry.key)}</code></th>
+            <th scope="row"><code translate="no">{shownText(entry.key)}</code></th>
             <td>
               <select data-hint={t('hint.form.classes.row')} aria-label={`${entry.key}: ${t('classes.class')}`} value={entry.class} onchange={(e) => void change(e.currentTarget, { key: entry.key }, entry.class)}>
                 {#each CLASSES as value (value)}<option {value}>{t(classLabel(value))}</option>{/each}
@@ -248,7 +248,7 @@
       <p class="muted">{t('classes.no_files')}</p>
     {:else}
       <ul class="plain">
-        {#each doc.unclassified as path (path)}<li><code>{shownText(path)}</code></li>{/each}
+        {#each doc.unclassified as path (path)}<li><code translate="no">{shownText(path)}</code></li>{/each}
       </ul>
     {/if}
   {/if}

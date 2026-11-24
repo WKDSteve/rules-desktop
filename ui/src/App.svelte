@@ -186,7 +186,7 @@
 <header>
   <h1>
     <Brand label={t('app.title')} hint={t('hint.brand')} onclick={() => app.setView('overview')}>
-      <span class="brand-mark"><img src={logo} alt="" width="20" height="20" />{t('app.title')}</span>
+      <span class="brand-mark" translate="no"><img src={logo} alt="" width="20" height="20" />{t('app.title')}</span>
     </Brand>
   </h1>
   <MenuBar {menus} label={t('menu.label')} />
@@ -232,7 +232,7 @@
   {:else if app.phase === 'needs_pairing'}
     <section class="state">
       <p>{app.pairRefused ? t('phase.pair_refused') : t('phase.needs_pairing')}</p>
-      <p class="muted"><code>{t('phase.needs_pairing.how')}</code></p>
+      <p class="muted"><code translate="no">{t('phase.needs_pairing.how')}</code></p>
     </section>
   {:else if app.phase === 'offline'}
     <p role="alert">{t('phase.offline')}</p>
