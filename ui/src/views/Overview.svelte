@@ -47,7 +47,7 @@
     <ul class="plain retired">
       {#each retired as gone (gone.id)}
         <li>
-          <code>{shownText(gone.id)}</code>
+          <code translate="no">{shownText(gone.id)}</code>
           <!-- The hub knows the class of a retired rule; the files of the snapshot do not list it, so the hub refuses. -->
           <button type="button" disabled={app.writing} onclick={() => void app.write([reinstateOp(gone.id)])}>
             {t('retired.reinstate')}

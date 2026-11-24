@@ -98,7 +98,7 @@
         <tbody>
           {#each doc.items as item (item.id)}
             <tr id={`waiver-${item.id}`}>
-              <th scope="row"><code>{shownText(item.id)}</code></th>
+              <th scope="row"><code translate="no">{shownText(item.id)}</code></th>
               <td>
                 {shownText(item.reason)}
                 {#if item.paths && item.paths.length > 0}

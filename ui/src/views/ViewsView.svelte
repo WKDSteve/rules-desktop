@@ -241,13 +241,13 @@
       onclick={() => void app.openDetail(item.id)}
       onkeydown={(e) => onItemKey(e, item.id, group.value)}
     >
-      <span class="id">{item.id}</span>
+      <span class="id" translate="no">{item.id}</span>
       <span class="title">{item.title}</span>
     </button>
   {:else}
     <!-- A retired rule has no detail: a key moves it all the same (back to active, by status). -->
     <button type="button" class="rule retired" data-view-item={item.id} onkeydown={(e) => onItemKey(e, item.id, group.value)}>
-      <span class="id">{item.id}</span> <span class="title">{t('views.value.status.retired')}</span>
+      <span class="id" translate="no">{item.id}</span> <span class="title">{t('views.value.status.retired')}</span>
     </button>
   {/if}
 {/snippet}
@@ -329,7 +329,7 @@
 
     {#if problems.length > 0}
       <ul class="problems" aria-label={t('views.problems')}>
-        {#each problems as p (p.id)}<li><code>{p.file}</code>: {p.message}</li>{/each}
+        {#each problems as p (p.id)}<li><code translate="no">{p.file}</code>: {p.message}</li>{/each}
       </ul>
     {/if}
 

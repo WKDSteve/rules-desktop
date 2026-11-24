@@ -38,7 +38,7 @@
       {#each families as row (row.name)}
         <tr>
           <th scope="row">
-            <button type="button" onclick={() => app.openFamily(row.name)}>{shownText(row.name)}</button>
+            <button type="button" translate="no" onclick={() => app.openFamily(row.name)}>{shownText(row.name)}</button>
           </th>
           <td>{row.total}</td>
           <td>{share(row, 'check')}</td>
