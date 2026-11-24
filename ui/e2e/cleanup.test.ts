@@ -5,7 +5,8 @@ import { spawn } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PREFIX, failAfterCleanup, removeTree, stopChild, tempFile, tempRoot } from './cleanup';
+import { removeTree, stopChild } from 'appkit-web/e2e-node';
+import { PREFIX, failAfterCleanup, tempFile, tempRoot } from './cleanup';
 import { teardown } from './global';
 import type { Running } from './hub';
 
@@ -18,30 +19,6 @@ describe('the temp dir of the browser tests', () => {
     expect(existsSync(root)).toBe(false);
     // One that is not there any more is no error.
     await removeTree(root);
-  });
-
-  it('a removal that fails is retried and then an error, never a silent leftover', async () => {
-    let calls = 0;
-    await removeTree('x', {
-      pauseMs: 1,
-      rm: () => {
-        calls++;
-        if (calls < 4) throw new Error('EBUSY');
-      },
-    });
-    expect(calls).toBe(4);
-
-    calls = 0;
-    const failing = removeTree('held', {
-      tries: 3,
-      pauseMs: 1,
-      rm: () => {
-        calls++;
-        throw new Error('EBUSY');
-      },
-    });
-    await expect(failing).rejects.toThrow(/cannot remove held: EBUSY/);
-    expect(calls).toBe(3);
   });
 
   it('a failed cleanup after a failed start is named in the error, a good one leaves it as it was', async () => {

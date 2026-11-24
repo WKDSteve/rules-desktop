@@ -5,7 +5,14 @@ import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { failAfterCleanup, removeTree, stopChild, tempRoot } from './cleanup';
+import {
+  pairingLink as pairing,
+  removeTree,
+  sessionToken as token,
+  stopChild,
+  type HubTarget,
+} from 'appkit-web/e2e-node';
+import { failAfterCleanup, tempRoot } from './cleanup';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '..', '..');
@@ -216,25 +223,14 @@ async function waitUntilReady(config: string): Promise<void> {
   await assertFreshBinary();
 }
 
+/** What `appkit-web/e2e-node` needs of this app's hub for the pairing. */
+const target = (): HubTarget => ({ exe, env, origin: ORIGIN });
+
+/** A pairing link, as `rules-desktop link` prints it. */
+export const pairingLink = (config: string): string => pairing(config, target());
+
 /**
  * A session token, got the way the page gets one. The hub allows ten exchanges a minute, so the tests share one
  * session and only the pairing tests go through a link.
  */
-export async function sessionToken(config: string): Promise<string> {
-  const code = pairingLink(config).split('#pair=')[1] ?? '';
-  const response = await fetch(`${ORIGIN}/auth/exchange`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
-    body: JSON.stringify({ code }),
-  });
-  if (!response.ok) throw new Error(`exchange refused: ${response.status}`);
-  return ((await response.json()) as { token: string }).token;
-}
-
-/** A pairing link, as `rules-desktop link` prints it. */
-export function pairingLink(config: string): string {
-  const out = execFileSync(exe, ['link'], { env: env(config), encoding: 'utf8' });
-  const link = out.trim().split(/\r?\n/)[0] ?? '';
-  if (!link.startsWith(`${ORIGIN}/#pair=`)) throw new Error(`unexpected link: ${link}`);
-  return link;
-}
+export const sessionToken = (config: string): Promise<string> => token(config, target());

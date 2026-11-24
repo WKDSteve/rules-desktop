@@ -9,8 +9,11 @@ importers:
   .:
     dependencies:
       appkit-ui:
-        specifier: github:WKDSteve/appkit#v0.81.0&path:ui-kit
-        version: https://codeload.github.com/WKDSteve/appkit/tar.gz/61acc27309606f45522ba0f6ff89788f8bd5c0b0#path:ui-kit(svelte@5.57.2)
+        specifier: github:WKDSteve/appkit#v0.82.0&path:ui-kit
+        version: https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813#path:ui-kit(svelte@5.57.2)
+      appkit-web:
+        specifier: github:WKDSteve/appkit#v0.82.0&path:web-kit
+        version: https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813#path:web-kit
       markdown-it:
         specifier: ^15.0.3
         version: 15.0.3
@@ -223,11 +226,16 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/61acc27309606f45522ba0f6ff89788f8bd5c0b0#path:ui-kit:
-    resolution: {path: ui-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/61acc27309606f45522ba0f6ff89788f8bd5c0b0}
+  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813#path:ui-kit:
+    resolution: {path: ui-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813}
     version: 0.0.0
     peerDependencies:
       svelte: ^5.0.0
+
+  appkit-web@https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813#path:web-kit:
+    resolution: {path: web-kit, tarball: https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813}
+    version: 0.0.0
+    engines: {node: '>=22'}
 
   argparse@3.0.3:
     resolution: {integrity: sha512-Sn98ftV3KfsO8xfLPHG6oT8y+b0yvbrLgZjgPDXsharNY15tTAjqIsIju4S32nl6/iEUNNE4v+yL2Zhm8ooP3w==}
@@ -724,10 +732,12 @@ snapshots:
 
   acorn@8.19.0: {}
 
-  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/61acc27309606f45522ba0f6ff89788f8bd5c0b0#path:ui-kit(svelte@5.57.2):
+  appkit-ui@https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813#path:ui-kit(svelte@5.57.2):
     dependencies:
       markdown-it: 15.0.3
       svelte: 5.57.2
+
+  appkit-web@https://codeload.github.com/WKDSteve/appkit/tar.gz/e3ea3c6f81ee8f0049c817a35cfdff13839d3813#path:web-kit: {}
 
   argparse@3.0.3: {}
 
