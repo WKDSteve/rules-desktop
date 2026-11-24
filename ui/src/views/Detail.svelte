@@ -127,6 +127,7 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 0.15rem 0.6rem;
+    min-height: 1.5rem;
     cursor: pointer;
   }
   .title {
@@ -193,5 +194,11 @@
   }
   .text {
     font-family: var(--font);
+  }
+
+  @media (pointer: coarse) {
+    button {
+      min-height: 2.75rem;
+    }
   }
 </style>

@@ -201,6 +201,7 @@
   th,
   td {
     padding: 0.3rem 0.6rem;
+    overflow-wrap: anywhere;
     border-bottom: 1px solid var(--line);
     text-align: left;
     vertical-align: baseline;
@@ -270,11 +271,18 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 0.15rem 0.6rem;
+    min-height: 1.5rem;
     cursor: pointer;
     color: var(--text);
   }
   button:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+
+  @media (pointer: coarse) {
+    button {
+      min-height: 2.75rem;
+    }
   }
 </style>
