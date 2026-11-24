@@ -3,7 +3,7 @@
   // A finding here is something the engine reported while loading; the checks of the rules are not run by this app.
   import type { App } from '../lib/app.svelte';
   import { familyTotals } from '../lib/families';
-  import { translate, type Key } from '../lib/i18n';
+  import { numberText, translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
   import { unclassifiedCount } from '../lib/sources';
   import { reinstateOp } from '../lib/write';
@@ -59,9 +59,9 @@
 
   <h3>{t('overview.severity')}</h3>
   <ul class="plain severities">
-    <li><span class="sev critical">{t('severity.critical')}</span> {totals.critical}</li>
-    <li><span class="sev recommended">{t('severity.recommended')}</span> {totals.recommended}</li>
-    <li><span class="sev nice">{t('severity.nice-to-have')}</span> {totals.nice_to_have}</li>
+    <li><span class="sev critical">{t('severity.critical')}</span> {numberText(app.lang, totals.critical)}</li>
+    <li><span class="sev recommended">{t('severity.recommended')}</span> {numberText(app.lang, totals.recommended)}</li>
+    <li><span class="sev nice">{t('severity.nice-to-have')}</span> {numberText(app.lang, totals.nice_to_have)}</li>
   </ul>
 
   <h3>{t('overview.findings')}</h3>

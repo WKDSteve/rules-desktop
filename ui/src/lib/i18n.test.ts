@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectLang, dictionaries, isLang, labelOf, translate, type Key } from './i18n';
+import { detectLang, dictionaries, isLang, labelOf, numberText, percentText, translate, type Key } from './i18n';
 
 describe('i18n', () => {
   it('has the same keys and the same placeholders in both languages', () => {
@@ -42,5 +42,23 @@ describe('i18n', () => {
     for (const word of ['public', 'internal', 'private', 'unclassified']) {
       expect(Object.hasOwn(dictionaries.en, `class.${word}`), word).toBe(true);
     }
+  });
+});
+
+describe('numbers in the writing of the language', () => {
+  it('numberText groups the thousands as the language does', () => {
+    expect(numberText('en', 1200)).toBe('1,200');
+    expect(numberText('de', 1200)).toBe('1.200');
+  });
+
+  it('percentText rounds to whole percents and tolerates an empty whole', () => {
+    expect(percentText('en', 1, 3)).toBe('33%');
+    expect(percentText('de', 1, 2).replace(/\s/g, ' ')).toBe('50 %');
+    expect(percentText('en', 5, 0)).toBe('0%');
+  });
+
+  it('a count in a sentence is written with the language grouping', () => {
+    expect(translate('en', 'list.count', { shown: 2, total: 1200 })).toBe('2 of 1,200');
+    expect(translate('de', 'list.count', { shown: 2, total: 1200 })).toBe('2 von 1.200');
   });
 });

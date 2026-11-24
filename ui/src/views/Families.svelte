@@ -5,7 +5,7 @@
   import type { App } from '../lib/app.svelte';
   import { selectionTarget } from '../lib/context';
   import { familyTotals } from '../lib/families';
-  import { translate, type Key } from '../lib/i18n';
+  import { numberText, translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
 
   let { app }: { app: App } = $props();
@@ -42,22 +42,22 @@
               }}>{shownText(row.family)}</button
             >
           </th>
-          <td class="num">{row.count}</td>
-          <td class="num">{row.critical}</td>
-          <td class="num">{row.recommended}</td>
-          <td class="num">{row.nice_to_have}</td>
-          <td class="num">{row.with_check}</td>
+          <td class="num">{numberText(app.lang, row.count)}</td>
+          <td class="num">{numberText(app.lang, row.critical)}</td>
+          <td class="num">{numberText(app.lang, row.recommended)}</td>
+          <td class="num">{numberText(app.lang, row.nice_to_have)}</td>
+          <td class="num">{numberText(app.lang, row.with_check)}</td>
         </tr>
       {/each}
     </tbody>
     <tfoot>
       <tr>
         <th scope="row">{t('families.total')}</th>
-        <td class="num">{totals.count}</td>
-        <td class="num">{totals.critical}</td>
-        <td class="num">{totals.recommended}</td>
-        <td class="num">{totals.nice_to_have}</td>
-        <td class="num">{totals.with_check}</td>
+        <td class="num">{numberText(app.lang, totals.count)}</td>
+        <td class="num">{numberText(app.lang, totals.critical)}</td>
+        <td class="num">{numberText(app.lang, totals.recommended)}</td>
+        <td class="num">{numberText(app.lang, totals.nice_to_have)}</td>
+        <td class="num">{numberText(app.lang, totals.with_check)}</td>
       </tr>
     </tfoot>
   </table>
