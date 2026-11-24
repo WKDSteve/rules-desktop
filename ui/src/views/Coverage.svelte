@@ -3,8 +3,8 @@
   // agent, or are worked by a person. The engine says it for each rule; the page adds up. A row opens the list narrowed
   // to its family (a gate narrows to its families). Nothing here runs a check: that is for docmap-desktop.
   import type { App } from '../lib/app.svelte';
-  import { byFamily, byGate, percent, type CoverageRow } from '../lib/coverage';
-  import { translate, type Key } from '../lib/i18n';
+  import { byFamily, byGate, type CoverageRow } from '../lib/coverage';
+  import { numberText, percentText, translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
 
   let { app }: { app: App } = $props();
@@ -15,7 +15,7 @@
   const gateFamilies = $derived(new Map((app.snapshot?.gates ?? []).map((g) => [g.name ?? '', g.families ?? []])));
 
   function share(row: CoverageRow, part: 'check' | 'agent' | 'manual'): string {
-    return `${row[part]} (${percent(row[part], row.total)} %)`;
+    return `${numberText(app.lang, row[part])} (${percentText(app.lang, row[part], row.total)})`;
   }
 </script>
 
@@ -40,7 +40,7 @@
           <th scope="row">
             <button type="button" translate="no" onclick={() => app.openFamily(row.name)}>{shownText(row.name)}</button>
           </th>
-          <td>{row.total}</td>
+          <td>{numberText(app.lang, row.total)}</td>
           <td>{share(row, 'check')}</td>
           <td>{share(row, 'agent')}</td>
           <td>{share(row, 'manual')}</td>
@@ -76,7 +76,7 @@
                 }}>{shownText(row.name)}</button
               >
             </th>
-            <td>{row.total}</td>
+            <td>{numberText(app.lang, row.total)}</td>
             <td>{share(row, 'check')}</td>
             <td>{share(row, 'agent')}</td>
             <td>{share(row, 'manual')}</td>

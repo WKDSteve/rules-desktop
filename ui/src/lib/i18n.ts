@@ -792,7 +792,37 @@ export function detectLang(preferred: readonly string[]): Lang {
 }
 
 export function translate(lang: Lang, key: Key, params: Record<string, string | number> = {}): string {
-  return fill(dictionaries[lang][key], params);
+  return fill(dictionaries[lang][key], numbersFor(lang, params));
+}
+
+const countFormats = new Map<Lang, Intl.NumberFormat>();
+const shareFormats = new Map<Lang, Intl.NumberFormat>();
+
+/** `n` as a person of `lang` writes it (1,200 or 1.200): the counts of a sentence and of a cell. */
+export function numberText(lang: Lang, n: number): string {
+  let format = countFormats.get(lang);
+  if (format === undefined) {
+    format = new Intl.NumberFormat(lang);
+    countFormats.set(lang, format);
+  }
+  return format.format(n);
+}
+
+/** `part` of `whole` as a whole percent in the writing of `lang` (50 % in German, 50% in English); 0 % for an empty whole. */
+export function percentText(lang: Lang, part: number, whole: number): string {
+  let format = shareFormats.get(lang);
+  if (format === undefined) {
+    format = new Intl.NumberFormat(lang, { style: 'percent', maximumFractionDigits: 0 });
+    shareFormats.set(lang, format);
+  }
+  return format.format(whole === 0 ? 0 : part / whole);
+}
+
+/** The numbers among `params` written for `lang`; words stay as they are. */
+function numbersFor(lang: Lang, params: Record<string, string | number>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(params)) out[name] = typeof value === 'number' ? numberText(lang, value) : value;
+  return out;
 }
 
 /**
