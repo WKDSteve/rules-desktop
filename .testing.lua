@@ -3,7 +3,22 @@
 
 return {
   sheets = {
+    -- the Chrome of the machine, as the e2e tests; playwright-core comes at the version of ui/pnpm-lock.yaml
+    browser = { playwright_dir = "ui", channel = "chrome" },
     apps = {
+      -- The hub of the run on a copy of the fixture vault (tools/sheet-hub.mjs): the debug binary and the real engine
+      -- (RULES_ENGINE_DIR, LIB_NVIM_DIR), as ui/e2e/hub.ts starts them, in a folder of the run. The page is built first
+      -- (the binary embeds ui/dist). The starter prints the pairing link once the engine answers and ends the hub when
+      -- the sheet is done.
+      ["hub"] = {
+        build = {
+          { "pnpm", "--dir", "ui", "build" },
+          { "cargo", "build", "-p", "rules-hub", "--locked" },
+        },
+        run = { "node", "tools/sheet-hub.mjs", "${temp}", "47398" },
+        ready = { stdout = "^http://127%.0%.0%.1:%d+/#pair=%x+$", as = "link" },
+        env = { NVIM_MACHINE_ROLE = "workstation" },
+      },
       -- The release build of rules-hub (a window program) started the way a link starts it (testing.nvim `start =
       -- "link"`: no standard handles, no console of a parent), against a config.json it cannot use in a folder of the
       -- run. The hub in the background ends at once on the config; the start sees that within about 2 s (appkit
