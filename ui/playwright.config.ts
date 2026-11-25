@@ -1,3 +1,6 @@
+// Playwright setup of the end-to-end tests: the `*.spec.ts` files of `e2e/` run one after the other against the real
+// hub in the system's Chrome, prepared once by `e2e/global.ts`.
+
 import { defineConfig } from '@playwright/test';
 
 // The system's Chrome is used (`channel`), so nothing is downloaded. One worker: the tests share one hub and

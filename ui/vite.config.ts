@@ -1,3 +1,6 @@
+// The Vite and Vitest setup of the page: Svelte plugin, the build into `dist` that the hub embeds, and the unit tests
+// under `src/` and `e2e/`.
+
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
 

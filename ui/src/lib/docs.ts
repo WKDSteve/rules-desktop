@@ -1,5 +1,6 @@
 // The documents the Help menu opens: the readme and the files of `docs/`, bundled with the page at build time (so
 // they read without a network, and are the text of this commit).
+
 import type { DocEntry } from 'appkit-ui/docs';
 
 export const REPO_URL = 'https://github.com/WKDSteve/rules-desktop';

@@ -2,6 +2,7 @@
 // and "open as a view" shows those rules grouped by a field of the engine in the tab Views, without saving; "save as a
 // view" there makes a file of it. The page declares the targets (`use:contextTarget`); what an entry does goes
 // through the methods of `App` the buttons use.
+
 import { ContextRegistry, type ContextTarget } from 'appkit-ui/contextmenu';
 import type { MenuItem } from 'appkit-ui/menu';
 import type { App } from './app.svelte';
