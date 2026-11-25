@@ -6,7 +6,9 @@
   import GroupMatrix from 'appkit-ui/GroupMatrix.svelte';
   import Groups from 'appkit-ui/Groups.svelte';
   import { cellsOf, groupsOf, NONE, type Cell, type Group } from 'appkit-ui/groups';
+  import { tick } from 'svelte';
   import type { App } from '../lib/app.svelte';
+  import { focusFirstInvalid } from '../lib/formErrors';
   import { translate, type Key } from '../lib/i18n';
   import {
     cellDropOp,
@@ -28,6 +30,7 @@
     type ViewDef,
   } from '../lib/views';
   import { neighbourCell, neighbourGroup } from 'appkit-ui/groups';
+  import FieldError from './FieldError.svelte';
 
   let { app }: { app: App } = $props();
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
@@ -77,6 +80,12 @@
   let groupBy2 = $state('severity');
   let renaming = $state('');
   let confirmDelete = $state(false);
+  // What is wrong with a field, told beside it when the form is sent; the field leaves the list when it is typed in.
+  let titleError = $state(false);
+  let renameError = $state(false);
+  let newForm: HTMLFormElement | undefined = $state();
+  let renameForm: HTMLFormElement | undefined = $state();
+  let sending = $state<'make' | 'rename' | null>(null);
   // The form for a new view: open by itself while there is none, else as the person leaves it (a reading of the views
   // again must not fold it under the person's typing).
   let newOpen = $state(false);
@@ -85,7 +94,11 @@
   });
 
   async function make(): Promise<void> {
-    if (title.trim() === '') return;
+    titleError = title.trim() === '';
+    if (titleError) {
+      void tick().then(() => focusFirstInvalid(newForm));
+      return;
+    }
     const def: ViewDef = {
       title: title.trim(),
       display,
@@ -94,7 +107,8 @@
       collapsed: [],
       select: EVERY,
     };
-    const outcome = await app.write([viewSaveOp(def)]);
+    sending = 'make';
+    const outcome = await app.write([viewSaveOp(def)]).finally(() => (sending = null));
     if (outcome && outcome.saved > 0) {
       // The engine named the file (a title that is taken gets -2, -3): the view it made is the one shown.
       app.viewId = outcome.ids[0] ?? null;
@@ -114,8 +128,17 @@
   }
 
   async function rename(): Promise<void> {
-    if (!current || renaming.trim() === '' || renaming.trim() === current.title) return;
-    const outcome = await app.write([viewSaveOp({ ...defOf(current), title: renaming.trim() }, current.id, current.etag)]);
+    if (!current) return;
+    renameError = renaming.trim() === '';
+    if (renameError) {
+      void tick().then(() => focusFirstInvalid(renameForm));
+      return;
+    }
+    if (renaming.trim() === current.title) return;
+    sending = 'rename';
+    const outcome = await app
+      .write([viewSaveOp({ ...defOf(current), title: renaming.trim() }, current.id, current.etag)])
+      .finally(() => (sending = null));
     if (outcome && outcome.saved > 0) renaming = '';
   }
 
@@ -280,12 +303,21 @@
           <button type="button" disabled={app.writing} onclick={() => void saveTransient()}>{t('views.transient.save')}</button>
         </p>
       {:else if views.length > 0}
-        <form class="inline" onsubmit={(e) => (e.preventDefault(), void rename())}>
+        <form class="inline" bind:this={renameForm} novalidate aria-busy={sending === 'rename'} onsubmit={(e) => (e.preventDefault(), void rename())}>
           <label data-hint={t('hint.form.views.rename')}>
             <span>{t('views.rename')}</span>
-            <input type="text" bind:value={renaming} placeholder={current?.title ?? ''} maxlength="300" />
+            <input
+              type="text"
+              bind:value={renaming}
+              placeholder={current?.title ?? ''}
+              maxlength="300"
+              aria-invalid={renameError ? 'true' : undefined}
+              aria-describedby={renameError ? 'view-rename-error' : undefined}
+              oninput={() => (renameError = false)}
+            />
           </label>
-          <button type="submit" disabled={app.writing || renaming.trim() === ''}>{t('views.rename.save')}</button>
+          <FieldError id="view-rename-error" text={renameError ? t('form.required') : null} />
+          <button type="submit">{sending === 'rename' ? t('form.sending') : t('views.rename.save')}</button>
         </form>
         {#if confirmDelete}
           <span class="confirm" role="group" aria-label={t('views.delete.ask', { title: current?.title ?? '' })}>
@@ -301,8 +333,19 @@
 
     <details class="new" bind:open={newOpen}>
       <summary>{t('views.new')}</summary>
-      <form onsubmit={(e) => (e.preventDefault(), void make())}>
-        <label data-hint={t('hint.form.views.new.title')}><span>{t('views.new.title')}</span><input type="text" bind:value={title} maxlength="300" required /></label>
+      <form bind:this={newForm} novalidate aria-busy={sending === 'make'} onsubmit={(e) => (e.preventDefault(), void make())}>
+        <label data-hint={t('hint.form.views.new.title')}>
+          <span>{t('views.new.title')}</span>
+          <input
+            type="text"
+            bind:value={title}
+            maxlength="300"
+            aria-invalid={titleError ? 'true' : undefined}
+            aria-describedby={titleError ? 'view-title-error' : undefined}
+            oninput={() => (titleError = false)}
+          />
+        </label>
+        <FieldError id="view-title-error" text={titleError ? t('form.required') : null} />
         <label data-hint={t('hint.form.views.new.display')}>
           <span>{t('views.new.display')}</span>
           <select bind:value={display}>
@@ -323,7 +366,7 @@
             </select>
           </label>
         {/if}
-        <button type="submit" disabled={app.writing || title.trim() === ''}>{t('views.new.save')}</button>
+        <button type="submit">{sending === 'make' ? t('form.sending') : t('views.new.save')}</button>
       </form>
     </details>
 

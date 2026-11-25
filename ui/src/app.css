@@ -1,0 +1,22 @@
+/* Rules that every view shares. */
+
+/* A checkbox is at least 24 x 24 px (what sits under the pointer), and on a coarse pointer, a finger, at least 44 x 44.
+   The browser's own box is about 13 px. */
+input[type='checkbox'] {
+  inline-size: 24px;
+  block-size: 24px;
+  margin: 0;
+}
+@media (pointer: coarse) {
+  input[type='checkbox'] {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+}
+
+/* What a form that was sent incomplete says beside the field (the field carries `aria-invalid`). */
+.field-error {
+  display: block;
+  color: var(--bad);
+  font-size: 0.85rem;
+}

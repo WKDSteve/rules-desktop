@@ -1,5 +1,6 @@
 <script lang="ts">
   import { closeOnBackdrop } from 'appkit-ui/backdrop';
+  import { tick } from 'svelte';
   // The dialog for a new rule: the family, the title, the severity and the text; the next id of the family is shown
   // as the engine names it (it is not reserved: the engine picks the id under the lock of the rule set when the rule
   // is made). Preview asks the engine for a dry run and shows what would happen; Create writes. What a good rule is,
@@ -7,8 +8,13 @@
   import type { App } from '../lib/app.svelte';
   import { dataPatch } from '../lib/edit';
   import { floating } from '../lib/floating';
+  import { focusFirstInvalid } from '../lib/formErrors';
   import { translate, type Key } from '../lib/i18n';
+  import { leaveGuard } from '../lib/leaveGuard';
+  import { warnBeforeUnload } from '../lib/unsaved';
   import { newOp, type Outcome } from '../lib/write';
+  import FieldError from './FieldError.svelte';
+  import LeaveAsk from './LeaveAsk.svelte';
 
   let { app }: { app: App } = $props();
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
@@ -24,7 +30,13 @@
   let agent = $state('');
   let ruleset = $state('');
   let next = $state<string | null>(null);
-  let problem = $state<Key | null>(null);
+  // What is wrong with a field, told beside it when the form is sent; the field leaves the list when it is typed in.
+  type Field = 'family' | 'title' | 'check' | 'agent';
+  let errors = $state<Partial<Record<Field, Key>>>({});
+  let form: HTMLFormElement | undefined = $state();
+  let sending = $state(false);
+  let previewing = $state(false);
+  let leaving = $state(false);
   let preview = $state<Outcome | null>(null);
 
   const open = $derived(app.newRuleOpen);
@@ -39,9 +51,19 @@
     agent = '';
     ruleset = '';
     next = null;
-    problem = null;
+    errors = {};
+    leaving = false;
     preview = null;
   }
+
+  const clear = (field: Field): void => {
+    if (errors[field]) errors = { ...errors, [field]: undefined };
+  };
+  // Something typed that closing would lose: Escape asks first, and the tab asks before it is closed.
+  const dirty = $derived([family, title, text, check, agent, ruleset].some((v) => v.trim() !== ''));
+  $effect(() => {
+    if (open && dirty) return warnBeforeUnload();
+  });
 
   $effect(() => {
     if (!dialog) return;
@@ -85,29 +107,31 @@
   /** The operation the fields stand for, or the reason they do not. */
   function build(): ReturnType<typeof newOp> | null {
     const data: { check?: unknown; agent?: unknown } = {};
+    const found: Partial<Record<Field, Key>> = {};
+    if (family.trim() === '') found.family = 'form.required';
+    if (title.trim() === '' || /[\r\n]/.test(title)) found.title = 'edit.bad_title';
     for (const [field, value] of [
       ['check', check],
       ['agent', agent],
     ] as const) {
       const read = dataPatch(value);
-      if (!read.ok) {
-        problem = 'edit.bad_json';
-        return null;
-      }
-      if (read.value !== null) data[field] = read.value;
+      if (!read.ok) found[field] = 'edit.bad_json';
+      else if (read.value !== null) data[field] = read.value;
     }
-    if (title.trim() === '' || /[\r\n]/.test(title)) {
-      problem = 'edit.bad_title';
+    errors = found;
+    if (Object.keys(found).length > 0) {
+      void tick().then(() => focusFirstInvalid(form));
       return null;
     }
-    problem = null;
     return newOp({ family: family.trim(), title: title.trim(), severity, text, ruleset: ruleset.trim(), ...data });
   }
 
   async function run(dryRun: boolean): Promise<void> {
     const op = build();
     if (!op) return;
-    const outcome = await app.write([op], { dryRun });
+    sending = true;
+    previewing = dryRun;
+    const outcome = await app.write([op], { dryRun }).finally(() => (sending = false));
     if (!outcome) return;
     if (dryRun) {
       preview = outcome;
@@ -127,34 +151,56 @@
 <dialog
   bind:this={dialog}
   use:floating={{ kind: 'new-rule', moveLabel: t('float.move'), moveHint: t('hint.float.move') }}
-  use:closeOnBackdrop={{ closeable: () => [title, text, check].every((v) => v.trim() === '') }}
+  use:closeOnBackdrop={{ closeable: () => !dirty }}
+  use:leaveGuard={{ dirty: () => dirty, ask: () => (leaving = true) }}
   aria-label={t('new.label')}
-  oncancel={() => app.closeNewRule()}
   onclose={() => {
     if (!dialog?.open) app.closeNewRule();
   }}
 >
   <form
+    bind:this={form}
+    novalidate
+    aria-busy={sending}
     onsubmit={(event) => {
       event.preventDefault();
       void run(false);
     }}
   >
     <h2>{t('new.label')}</h2>
+    {#if leaving}<LeaveAsk {app} ondiscard={() => { leaving = false; dialog?.close(); }} onkeep={() => (leaving = false)} />{/if}
     <label data-hint={t('hint.form.new.family')}>
       {t('new.family')}
-      <input type="text" list="new-rule-families" bind:value={family} bind:this={familyInput} autocomplete="off" spellcheck="false" />
+      <input
+        type="text"
+        list="new-rule-families"
+        bind:value={family}
+        bind:this={familyInput}
+        autocomplete="off"
+        spellcheck="false"
+        aria-invalid={errors.family ? 'true' : undefined}
+        aria-describedby={errors.family ? 'new-family-error' : undefined}
+        oninput={() => clear('family')}
+      />
       <datalist id="new-rule-families">
         {#each families as name (name)}<option value={name}></option>{/each}
       </datalist>
     </label>
+    <FieldError id="new-family-error" text={errors.family ? t(errors.family) : null} />
     <p class="muted" role="status">
       {#if family.trim() !== ''}{next ? t('new.next', { id: next }) : t('new.next_none')}{/if}
     </p>
     <label data-hint={t('hint.form.edit.title')}>
       {t('edit.title')}
-      <input type="text" bind:value={title} />
+      <input
+        type="text"
+        bind:value={title}
+        aria-invalid={errors.title ? 'true' : undefined}
+        aria-describedby={errors.title ? 'new-title-error' : undefined}
+        oninput={() => clear('title')}
+      />
     </label>
+    <FieldError id="new-title-error" text={errors.title ? t(errors.title) : null} />
     <label data-hint={t('hint.form.edit.severity')}>
       {t('edit.severity')}
       <select bind:value={severity}>
@@ -167,18 +213,35 @@
     </label>
     <label data-hint={t('hint.form.edit.check')}>
       {t('edit.check')}
-      <textarea rows="3" class="mono" spellcheck="false" bind:value={check}></textarea>
+      <textarea
+        rows="3"
+        class="mono"
+        spellcheck="false"
+        bind:value={check}
+        aria-invalid={errors.check ? 'true' : undefined}
+        aria-describedby={errors.check ? 'new-check-error' : undefined}
+        oninput={() => clear('check')}
+      ></textarea>
     </label>
+    <FieldError id="new-check-error" text={errors.check ? t(errors.check) : null} />
     <label data-hint={t('hint.form.edit.agent')}>
       {t('edit.agent')}
-      <textarea rows="2" class="mono" spellcheck="false" bind:value={agent}></textarea>
+      <textarea
+        rows="2"
+        class="mono"
+        spellcheck="false"
+        bind:value={agent}
+        aria-invalid={errors.agent ? 'true' : undefined}
+        aria-describedby={errors.agent ? 'new-agent-error' : undefined}
+        oninput={() => clear('agent')}
+      ></textarea>
     </label>
+    <FieldError id="new-agent-error" text={errors.agent ? t(errors.agent) : null} />
     <label data-hint={t('hint.form.new.ruleset')}>
       {t('new.ruleset')}
       <input type="text" spellcheck="false" bind:value={ruleset} />
     </label>
 
-    {#if problem}<p role="alert" class="bad">{t(problem)}</p>{/if}
     {#if preview}
       <div role="status" class="preview">
         {#each preview.ids as id (id)}<p>{t('new.would', { id })}</p>{/each}
@@ -190,9 +253,9 @@
     {/if}
 
     <div class="row">
-      <button type="submit" disabled={app.writing || family.trim() === ''}>{t('new.create')}</button>
-      <button type="button" disabled={app.writing || family.trim() === ''} onclick={() => void run(true)}>
-        {t('new.preview')}
+      <button type="submit">{sending && !previewing ? t('form.sending') : t('new.create')}</button>
+      <button type="button" onclick={() => void run(true)}>
+        {sending && previewing ? t('form.sending') : t('new.preview')}
       </button>
       <button type="button" onclick={() => app.closeNewRule()}>{t('edit.cancel')}</button>
     </div>

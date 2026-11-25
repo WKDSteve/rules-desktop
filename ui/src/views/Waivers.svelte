@@ -3,10 +3,14 @@
   // paths. The file lives in the project, not in a rule set; the hub names the project (the person set it in
   // config.json), this page never names a folder. Every change goes with the tag of the file that was read, so that
   // nothing is written over a change made since; the engine writes the file as a whole, keys sorted.
+  import { tick } from 'svelte';
   import type { App } from '../lib/app.svelte';
+  import { focusFirstInvalid } from '../lib/formErrors';
   import { translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
+  import { warnBeforeUnload } from '../lib/unsaved';
   import { removeOp, renewOp, waiveOp } from '../lib/write';
+  import FieldError from './FieldError.svelte';
 
   let { app }: { app: App } = $props();
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
@@ -22,6 +26,18 @@
   let renewing = $state<string | null>(null);
   let renewTo = $state('');
   let renewNone = $state(false);
+  // What is wrong with a field, told beside it when the form is sent; the field leaves the list when it is typed in.
+  let idError = $state(false);
+  let reasonError = $state(false);
+  let renewError = $state(false);
+  let addForm: HTMLFormElement | undefined = $state();
+  let renewForm: HTMLFormElement | undefined = $state();
+  let sending = $state(false);
+  // A waiver that is typed and not yet written is lost with the tab: the browser asks first.
+  const dirty = $derived([id, reason, expires, paths].some((v) => v.trim() !== ''));
+  $effect(() => {
+    if (dirty) return warnBeforeUnload();
+  });
 
   $effect(() => {
     void app.loadWaivers();
@@ -36,14 +52,21 @@
 
   async function add(): Promise<void> {
     const etag = app.waiversEtag();
-    if (etag === null || id.trim() === '' || reason.trim() === '') return;
+    idError = id.trim() === '';
+    reasonError = reason.trim() === '';
+    if (idError || reasonError) {
+      void tick().then(() => focusFirstInvalid(addForm));
+      return;
+    }
+    if (etag === null) return;
     const list = paths
       .split('\n')
       .map((p) => p.trim())
       .filter((p) => p !== '');
-    const outcome = await app.write([
-      waiveOp({ id: id.trim(), reason: reason.trim(), expires: expires.trim(), paths: list }, etag),
-    ]);
+    sending = true;
+    const outcome = await app
+      .write([waiveOp({ id: id.trim(), reason: reason.trim(), expires: expires.trim(), paths: list }, etag)])
+      .finally(() => (sending = false));
     if (outcome && outcome.saved > 0 && outcome.failures.length === 0 && outcome.conflicts.length === 0) {
       id = reason = expires = paths = '';
     }
@@ -51,7 +74,12 @@
 
   async function renew(waiverId: string): Promise<void> {
     const etag = app.waiversEtag();
-    if (etag === null || (!renewNone && renewTo.trim() === '')) return;
+    renewError = !renewNone && renewTo.trim() === '';
+    if (renewError) {
+      void tick().then(() => focusFirstInvalid(renewForm));
+      return;
+    }
+    if (etag === null) return;
     const end = renewNone ? ({ no_expiry: true } as const) : { expires: renewTo.trim() };
     const outcome = await app.write([renewOp(waiverId, end, etag)]);
     if (outcome && outcome.saved > 0) renewing = null;
@@ -66,6 +94,7 @@
     renewing = renewing === waiverId ? null : waiverId;
     renewTo = current ?? '';
     renewNone = false;
+    renewError = false;
   }
 </script>
 
@@ -121,6 +150,8 @@
                 <td colspan="5">
                   <form
                     class="inline"
+                    bind:this={renewForm}
+                    novalidate
                     onsubmit={(event) => {
                       event.preventDefault();
                       void renew(item.id);
@@ -128,13 +159,23 @@
                   >
                     <label data-hint={t('hint.form.waiver.renew_to')}>
                       {t('waiver.renew_to')}
-                      <input type="text" spellcheck="false" bind:value={renewTo} disabled={renewNone} placeholder="2027-01-31" />
+                      <input
+                        type="text"
+                        spellcheck="false"
+                        bind:value={renewTo}
+                        disabled={renewNone}
+                        placeholder="2027-01-31"
+                        aria-invalid={renewError ? 'true' : undefined}
+                        aria-describedby={renewError ? 'renew-to-error' : undefined}
+                        oninput={() => (renewError = false)}
+                      />
                     </label>
+                    <FieldError id="renew-to-error" text={renewError ? t('form.required') : null} />
                     <label class="check" data-hint={t('hint.form.waiver.renew_none')}>
-                      <input type="checkbox" bind:checked={renewNone} />
+                      <input type="checkbox" bind:checked={renewNone} onchange={() => (renewError = false)} />
                       {t('waiver.renew_none')}
                     </label>
-                    <button type="submit" disabled={app.writing}>{t('waiver.renew_apply')}</button>
+                    <button type="submit">{t('waiver.renew_apply')}</button>
                   </form>
                 </td>
               </tr>
@@ -147,6 +188,9 @@
     <h3>{t('waiver.new')}</h3>
     <form
       class="new"
+      bind:this={addForm}
+      novalidate
+      aria-busy={sending}
       onsubmit={(event) => {
         event.preventDefault();
         void add();
@@ -154,15 +198,32 @@
     >
       <label data-hint={t('hint.form.waiver.id')}>
         {t('waiver.id')}
-        <input type="text" list="waiver-rules" bind:value={id} autocomplete="off" spellcheck="false" />
+        <input
+          type="text"
+          list="waiver-rules"
+          bind:value={id}
+          autocomplete="off"
+          spellcheck="false"
+          aria-invalid={idError ? 'true' : undefined}
+          aria-describedby={idError ? 'waiver-id-error' : undefined}
+          oninput={() => (idError = false)}
+        />
         <datalist id="waiver-rules">
           {#each app.rules as rule (rule.id)}<option value={rule.id}></option>{/each}
         </datalist>
       </label>
+      <FieldError id="waiver-id-error" text={idError ? t('form.required') : null} />
       <label data-hint={t('hint.form.waiver.reason')}>
         {t('waiver.reason')}
-        <input type="text" bind:value={reason} />
+        <input
+          type="text"
+          bind:value={reason}
+          aria-invalid={reasonError ? 'true' : undefined}
+          aria-describedby={reasonError ? 'waiver-reason-error' : undefined}
+          oninput={() => (reasonError = false)}
+        />
       </label>
+      <FieldError id="waiver-reason-error" text={reasonError ? t('form.required') : null} />
       <label data-hint={t('hint.form.waiver.expires')}>
         {t('waiver.expires')}
         <input type="text" spellcheck="false" bind:value={expires} placeholder="2027-01-31" />
@@ -172,7 +233,7 @@
         <textarea rows="3" spellcheck="false" bind:value={paths}></textarea>
       </label>
       <div>
-        <button type="submit" disabled={app.writing || id.trim() === '' || reason.trim() === ''}>{t('waiver.add')}</button>
+        <button type="submit">{sending ? t('form.sending') : t('waiver.add')}</button>
       </div>
     </form>
   {/if}

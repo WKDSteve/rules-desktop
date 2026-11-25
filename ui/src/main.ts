@@ -6,6 +6,7 @@
 import 'appkit-ui/tokens.css';
 import './palette.css';
 import 'appkit-ui/base.css';
+import './app.css';
 import { askForSession, shareSession, type ChannelLike } from 'appkit-ui/handoff';
 import { placeOf } from 'appkit-ui/nav';
 import { takePairingCode } from 'appkit-ui/pair';

@@ -6,6 +6,7 @@
   import type { App } from '../lib/app.svelte';
   import { draftOf, patchOf, unchanged, type Body, type Draft } from '../lib/edit';
   import { translate, type Key } from '../lib/i18n';
+  import { warnBeforeUnload } from '../lib/unsaved';
   import { moveOp, retireOp, setOp } from '../lib/write';
 
   let { app, rule, onclose }: { app: App; rule: Body; onclose: () => void } = $props();
@@ -22,6 +23,11 @@
   let moveTo = $state('');
   let moveWhere = $state<'after' | 'before'>('after');
   const dirty = $derived(!unchanged(rule, draft));
+  let sending = $state(false);
+  // A change typed and not yet saved is lost with the tab: the browser asks first.
+  $effect(() => {
+    if (dirty) return warnBeforeUnload();
+  });
 
   async function save(): Promise<void> {
     const result = patchOf(rule, draft);
@@ -30,7 +36,8 @@
       return;
     }
     problem = null;
-    const outcome = await app.write([setOp(rule.id, result.patch, rule.etag)]);
+    sending = true;
+    const outcome = await app.write([setOp(rule.id, result.patch, rule.etag)]).finally(() => (sending = false));
     if (outcome && outcome.saved > 0 && outcome.conflicts.length === 0 && outcome.failures.length === 0) onclose();
   }
 
@@ -52,6 +59,7 @@
 <form
   class="editor"
   aria-label={t('edit.label')}
+  aria-busy={sending}
   onsubmit={(event) => {
     event.preventDefault();
     void save();
@@ -88,7 +96,7 @@
   {/if}
   {#if problem}<p role="alert" class="bad">{t(problem)}</p>{/if}
   <div class="row">
-    <button type="submit" disabled={!dirty || app.writing}>{t('edit.save')}</button>
+    <button type="submit" disabled={!dirty}>{sending ? t('form.sending') : t('edit.save')}</button>
     <button type="button" onclick={onclose}>{t('edit.cancel')}</button>
     <button type="button" class="push" onclick={() => (moving = !moving)} aria-expanded={moving}>{t('move.open')}</button>
     <button type="button" onclick={() => (retiring = !retiring)} aria-expanded={retiring}>{t('retire.open')}</button>

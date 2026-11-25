@@ -26,13 +26,16 @@
   // a change that RELEASES MORE is asked first (the hub says when a change does: it knows the policy in force). The
   // hub writes sources.json itself, in the config folder; the vault is not touched. A rule set with no class is
   // shown, not released and not written.
+  import { tick } from 'svelte';
   import type { ClassChange, DataClass } from '../lib/api';
   import { contextTarget } from 'appkit-ui/contextmenu';
   import type { App } from '../lib/app.svelte';
   import { selectionTarget } from '../lib/context';
+  import { focusFirstInvalid } from '../lib/formErrors';
   import { translate, type Key } from '../lib/i18n';
   import { shownText } from '../lib/ruletext';
   import { classLabel } from '../lib/sources';
+  import FieldError from './FieldError.svelte';
 
   let { app }: { app: App } = $props();
   const t = (key: Key, params: Record<string, string | number> = {}) => translate(app.lang, key, params);
@@ -44,6 +47,12 @@
   let newKey = $state('');
   let newRuleset = $state('');
   let newClass = $state<Class>('private');
+  // What is wrong with a field, told beside it when the form is sent; the field leaves the list when it is typed in.
+  let rulesetError = $state(false);
+  let keyError = $state(false);
+  let rulesetForm: HTMLFormElement | undefined = $state();
+  let classForm: HTMLFormElement | undefined = $state();
+  let sending = $state<'ruleset' | 'class' | null>(null);
 
   /** The first part of the sources of the files: a start for a key. */
   const startsOf = $derived([...new Set((doc?.files ?? []).map((f) => f.path.split('/')[0] ?? ''))].filter((s) => s !== ''));
@@ -69,8 +78,17 @@
 
   async function makeRuleset(): Promise<void> {
     const name = newRuleset.trim();
-    if (name === '') return;
-    if (await app.makeRuleset(name)) newRuleset = '';
+    rulesetError = name === '';
+    if (rulesetError) {
+      void tick().then(() => focusFirstInvalid(rulesetForm));
+      return;
+    }
+    sending = 'ruleset';
+    try {
+      if (await app.makeRuleset(name)) newRuleset = '';
+    } finally {
+      sending = null;
+    }
   }
 
   // Read when the view opens, and again whenever a new snapshot dropped the list (the vault may have changed).
@@ -80,8 +98,17 @@
 
   async function add(): Promise<void> {
     const key = newKey.trim();
-    if (key === '') return;
-    if (await app.setClass({ key, class: newClass })) newKey = '';
+    keyError = key === '';
+    if (keyError) {
+      void tick().then(() => focusFirstInvalid(classForm));
+      return;
+    }
+    sending = 'class';
+    try {
+      if (await app.setClass({ key, class: newClass })) newKey = '';
+    } finally {
+      sending = null;
+    }
   }
 
   function describe(change: ClassChange | null): string {
@@ -149,6 +176,9 @@
 
     <form
       class="add"
+      bind:this={rulesetForm}
+      novalidate
+      aria-busy={sending === 'ruleset'}
       onsubmit={(event) => {
         event.preventDefault();
         void makeRuleset();
@@ -156,9 +186,18 @@
     >
       <label data-hint={t('hint.form.rulesets.create_name')}>
         {t('rulesets.create_name')}
-        <input type="text" bind:value={newRuleset} autocomplete="off" spellcheck="false" />
+        <input
+          type="text"
+          bind:value={newRuleset}
+          autocomplete="off"
+          spellcheck="false"
+          aria-invalid={rulesetError ? 'true' : undefined}
+          aria-describedby={rulesetError ? 'ruleset-name-error' : undefined}
+          oninput={() => (rulesetError = false)}
+        />
       </label>
-      <div><button type="submit" disabled={app.writing || newRuleset.trim() === ''}>{t('rulesets.create')}</button></div>
+      <FieldError id="ruleset-name-error" text={rulesetError ? t('form.required') : null} />
+      <div><button type="submit">{sending === 'ruleset' ? t('form.sending') : t('rulesets.create')}</button></div>
     </form>
 
     <h4>{t('rulesets.archived')}</h4>
@@ -222,6 +261,9 @@
     <h3>{t('classes.add')}</h3>
     <form
       class="add"
+      bind:this={classForm}
+      novalidate
+      aria-busy={sending === 'class'}
       onsubmit={(event) => {
         event.preventDefault();
         void add();
@@ -229,18 +271,28 @@
     >
       <label data-hint={t('hint.form.classes.add_key')}>
         {t('classes.add_key')}
-        <input type="text" list="source-starts" bind:value={newKey} autocomplete="off" spellcheck="false" />
+        <input
+          type="text"
+          list="source-starts"
+          bind:value={newKey}
+          autocomplete="off"
+          spellcheck="false"
+          aria-invalid={keyError ? 'true' : undefined}
+          aria-describedby={keyError ? 'class-key-error' : undefined}
+          oninput={() => (keyError = false)}
+        />
         <datalist id="source-starts">
           {#each startsOf as start (start)}<option value={start}></option>{/each}
         </datalist>
       </label>
+      <FieldError id="class-key-error" text={keyError ? t('form.required') : null} />
       <label data-hint={t('hint.form.classes.class')}>
         {t('classes.class')}
         <select bind:value={newClass}>
           {#each CLASSES as value (value)}<option {value}>{t(classLabel(value))}</option>{/each}
         </select>
       </label>
-      <div><button type="submit" disabled={app.writing || newKey.trim() === ''}>{t('classes.add')}</button></div>
+      <div><button type="submit">{sending === 'class' ? t('form.sending') : t('classes.add')}</button></div>
     </form>
 
     <h3>{t('classes.unclassified')}</h3>
