@@ -223,8 +223,17 @@ jobs:
           ref: 406f4cd7ab3b0bd608362739f3b10efd5e82de46
           path: .deps/testing.nvim
           persist-credentials: false
+      # testing.nvim needs a newer lib.nvim than the engine of this repository pins; the hub of the sheets runs with it too.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          repository: WKDSteve/lib.nvim
+          ref: 31bc860c4c743626b178dc1c5b7f0f9e98618254
+          path: .deps/lib.nvim
+          persist-credentials: false
       - name: Test sheets (browser)
         run: nvim -n -i NONE --headless -u NONE -l .deps/testing.nvim/scripts/testing.lua sheets run --all --root . --engine browser --strict
+        env:
+          LIB_NVIM_DIR: ${{ github.workspace }}/.deps/lib.nvim
       # A failed browser test leaves its trace (network, DOM, console) to read instead of a guess.
       - name: Traces of failed browser tests
         if: failure()
