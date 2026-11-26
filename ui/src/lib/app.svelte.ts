@@ -5,6 +5,7 @@
 import { takePairingCode, type HistoryLike, type LocationLike } from 'appkit-ui/pair';
 import type { Route } from 'appkit-ui/route';
 import { Preferences, StreamSession } from 'appkit-ui/session';
+import { signOut } from 'appkit-ui/signout';
 import type { SseMessage } from 'appkit-ui/sse';
 import { readIntent } from './intent';
 import { ApiError, type ClassChange, type Hub, type HubSources } from './api';
@@ -383,12 +384,10 @@ export class App {
    * pairing state whatever the hub answers, also when it does not answer at all.
    */
   async signOut(): Promise<void> {
-    try {
-      await this.env.hub.post('/api/session/logout', {});
-    } catch {
-      // The hub is down or has forgotten the session already: the page forgets it either way.
-    }
-    this.lostSession();
+    await signOut(
+      () => this.env.hub.post('/api/session/logout', {}),
+      () => this.lostSession(),
+    );
   }
 
   private lostSession(): void {
