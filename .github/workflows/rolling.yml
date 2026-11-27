@@ -1,24 +1,30 @@
 # The rolling build: after every green CI run on main, the program of exactly that commit is built for
-# Windows and put on the pre-release `latest`, whose files are replaced each time. It is for looking at
-# the newest state with a click, not a release: no version tag, not signed. A release stays a deliberate
-# act (release.yml, rule NREL-07).
+# Windows, Linux and macOS and put on the pre-release `latest`, whose files are replaced each time. It is for
+# looking at the newest state with a click, not a release: no version tag, not signed. A release stays a
+# deliberate act (release.yml, rule NREL-07).
 #
-#   rules-hub-windows-x86_64.exe        a double click sets up and starts the hub, and opens the browser
-#   install.ps1                         installs exactly this build for the current user (release-kit
-#                                       of appkit, stamped for the channel `latest`)
-#   uninstall.ps1                       the script of scripts/ at this commit
-#   SHA256SUMS                          the checksums of all of them
+#   rules-hub-windows-x86_64.exe                  a double click sets up and starts the hub, and opens the browser
+#   rules-hub-x86_64-unknown-linux-gnu.tar.gz     the same program for Linux (the archive keeps the executable bit)
+#   rules-hub-aarch64-apple-darwin.tar.gz         the same program for macOS on Apple silicon (experimental)
+#   install.ps1, install.sh                       install exactly this build for the current user (release-kit
+#                                                 of appkit, stamped for the channel `latest`; install.sh picks
+#                                                 the archive of its system by the triple in the name)
+#   uninstall.ps1, uninstall.sh                   the scripts of scripts/ at this commit
+#   SHA256SUMS                                    the checksums of all of them
 #
-# Runs on the maintainer's self-hosted Windows runner (by choice, see docs/RELEASING.md), so only Windows is
-# built: the Linux archive and install.sh of the earlier hosted workflow are gone. It follows only CI runs
-# that came from a push to main (ci.yml has no pull request trigger, and `prepare` checks the event again).
-# The release-kit actions run there by Git Bash (appkit v0.23.1 and later). appkit is public and read
-# without credentials.
+# Windows builds on the self-hosted Windows runner of the maintainer (`runs-on: [self-hosted, windows]`, see
+# docs/RELEASING.md); Linux (ubuntu-22.04, for an older glibc) and macOS (macos-latest, arm64) build on GitHub-hosted
+# throw-away VMs, which cost nothing for a public repository. The macOS leg is experimental (`continue-on-error`):
+# its archive goes up when it is there, but a red macOS build never holds back the others; it becomes a required leg
+# after some green runs. Each Unix leg runs scripts/test-install.sh on the program it built (install.sh of the pinned
+# release-kit and uninstall.sh of this commit in a throw-away HOME). It follows only CI runs that came from a push to
+# main (ci.yml has no pull request trigger, and `prepare` checks the event again). The release-kit actions run on the
+# Windows runner by Git Bash (appkit v0.23.1 and later). appkit is public and read without credentials.
 #
 # Deciding (the newest green commit of main is built) and publishing (SHA256SUMS first, the words of the page
 # last) are the actions prepare and publish of appkit's release-kit, pinned by the commit of the tag
 # that Cargo.lock pins (tools/check-appkit-pin.py checks that they agree). The build is ours: its
-# files go to publish as artifacts.
+# files go to publish as artifacts. tools/check-rolling-workflow.py guards the Linux and macOS legs.
 #
 # Actions are pinned by commit (NREL-03); a job gets only the rights it needs.
 
@@ -75,15 +81,46 @@ jobs:
           token: ${{ github.token }}
 
   build:
+    name: build (${{ matrix.name }})
     needs: prepare
     if: ${{ needs.prepare.outputs.current == 'true' }}
-    runs-on: [self-hosted, windows]
+    runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 40
+    # A red experimental leg leaves the job green, so publish still runs; its archive is then simply missing.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            runs-on: [self-hosted, windows]
+            shell: C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}
+            program: rules-hub.exe
+            asset: rules-hub-windows-x86_64.exe
+            experimental: false
+          - name: linux
+            runs-on: ubuntu-22.04
+            shell: bash --noprofile --norc -e -o pipefail {0}
+            program: rules-hub
+            asset: rules-hub-x86_64-unknown-linux-gnu.tar.gz
+            experimental: false
+          - name: macos
+            runs-on: macos-latest
+            shell: bash --noprofile --norc -e -o pipefail {0}
+            program: rules-hub
+            asset: rules-hub-aarch64-apple-darwin.tar.gz
+            experimental: true
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
         with:
           ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
+      - name: pnpm (a hosted runner has node, not pnpm)
+        if: ${{ matrix.name != 'windows' }}
+        run: npm install --global pnpm@10
       # The interface is part of the binary (NREL-04): it is built first, then the program.
       - name: Build the interface
         working-directory: ui
@@ -97,19 +134,42 @@ jobs:
       - name: Pack and look at what it says
         env:
           SHORT: ${{ needs.prepare.outputs.short }}
+          PROGRAM: ${{ matrix.program }}
+          ASSET: ${{ matrix.asset }}
         run: |
           set -eu
-          got="$(target/release/rules-hub.exe --version)"
+          got="$(target/release/$PROGRAM --version)"
           case "$got" in
             *"(build ${SHORT})") ;;
             *) echo "::error::the program says '$got', it should name the build ${SHORT}"; exit 1 ;;
           esac
+          rm -rf dist stage stage.list
           mkdir -p dist
-          cp target/release/rules-hub.exe dist/rules-hub-windows-x86_64.exe
+          case "$ASSET" in
+            *.tar.gz)
+              # The program at the top of the archive, as release-kit's install.sh (kind hub) expects it.
+              mkdir stage
+              cp "target/release/$PROGRAM" LICENSE stage/
+              chmod 755 "stage/$PROGRAM"
+              COPYFILE_DISABLE=1 tar -czf "dist/$ASSET" -C stage .
+              # Listed into a file, not piped: `grep -q` stops at the first match, GNU tar then dies writing the
+              # next entry (SIGPIPE) and pipefail turns that into a failure.
+              tar -tzf "dist/$ASSET" > stage.list
+              grep -qx "./$PROGRAM" stage.list
+              ;;
+            *) cp "target/release/$PROGRAM" "dist/$ASSET" ;;
+          esac
+      # install.sh of release-kit and scripts/uninstall.sh against this very program, in a throw-away HOME.
+      - name: Install and uninstall on this system
+        if: ${{ matrix.name != 'windows' }}
+        env:
+          PROGRAM: ${{ matrix.program }}
+        run: sh scripts/test-install.sh "target/release/$PROGRAM"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: rolling-windows
-          path: dist/rules-hub-windows-x86_64.exe
+          # Named by the commit: a re-run whose prepare picks a newer commit never takes up a file of the older one.
+          name: rolling-${{ matrix.name }}-${{ needs.prepare.outputs.short }}
+          path: dist/${{ matrix.asset }}
           if-no-files-found: error
           retention-days: 1
 
@@ -117,6 +177,10 @@ jobs:
   # move last, so only then does it name this commit.
   publish:
     needs: [prepare, build]
+    # Also when the experimental leg was cancelled (a timeout, a lost hosted runner), which can make the
+    # result of build `cancelled`; a failed required leg makes it `failure` and stops here. The step
+    # "Which files are there" requires the Windows and the Linux file either way.
+    if: ${{ !cancelled() && needs.prepare.outputs.current == 'true' && needs.build.result != 'failure' }}
     runs-on: [self-hosted, windows]
     timeout-minutes: 15
     permissions:
@@ -130,21 +194,42 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: rolling-*
+          pattern: rolling-*-${{ needs.prepare.outputs.short }}
           path: dist
           merge-multiple: true
+      # Windows and Linux are required; the archive of the experimental macOS leg goes up when it is there.
+      # A missing macOS file also takes an earlier one off the release (publish removes what is not built).
+      - name: Which files are there
+        id: files
+        run: |
+          set -eu
+          ls -la dist
+          test -f dist/rules-hub-windows-x86_64.exe
+          test -f dist/rules-hub-x86_64-unknown-linux-gnu.tar.gz
+          count=2
+          if [ -f dist/rules-hub-aarch64-apple-darwin.tar.gz ]; then
+            count=3
+          else
+            echo "::warning::no macOS archive in this run (experimental leg)"
+          fi
+          echo "count=$count" >> "$GITHUB_OUTPUT"
       - uses: WKDSteve/appkit/release-kit/publish@d466187d4871497bae161a26f092b185487cb489 # v0.84.1
         with:
           token: ${{ github.token }}
           tag: latest
           sha: ${{ needs.prepare.outputs.sha }}
           files: dist
-          expect: 1
+          expect: ${{ steps.files.outputs.count }}
           app: rules-desktop
           windows-kind: hub
           windows-program: rules-hub.exe
           windows-release-asset: rules-hub-{version}-{triple}.zip
           windows-rolling-asset: rules-hub-windows-x86_64.exe
+          unix-kind: hub
+          unix-program: rules-hub
+          unix-release-asset: rules-hub-{version}-{triple}.tar.gz
+          unix-rolling-asset: rules-hub-{triple}.tar.gz
           extra: |
             scripts/uninstall.ps1
+            scripts/uninstall.sh
           notes-file: .github/rolling-notes.md

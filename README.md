@@ -132,10 +132,25 @@ There are two channels, and both carry an install script that installs exactly t
 - **The rolling build** (the pre-release `latest`): the newest green commit of `main`, rebuilt after every CI run,
   for trying what is new and not for anything that matters.
 
-Both are Windows only: the builds run on the maintainer's self-hosted Windows runner (see [docs/RELEASING.md](docs/RELEASING.md)); there is no Linux or macOS archive and no
-`install.sh`.
+Both carry Windows (x86-64), Linux (x86-64) and macOS (Apple silicon, experimental): Windows builds on the
+maintainer's self-hosted Windows runner, Linux and macOS on GitHub-hosted runners (see
+[docs/RELEASING.md](docs/RELEASING.md)).
 
-The scripts need no administrator rights and install for one user, so they also work where SmartScreen stops a
+**Linux and macOS:** install for the current user (no root; the script picks the archive of your system, checks it
+against `SHA256SUMS` and runs `rules-hub install`):
+
+```
+curl -fsSL https://github.com/WKDSteve/rules-desktop/releases/download/latest/install.sh | sh
+# a release: the same with the tag in place of latest, e.g. .../releases/download/v0.1.0/install.sh
+```
+
+The script takes the archive of your system (`rules-hub-x86_64-unknown-linux-gnu.tar.gz` or
+`rules-hub-aarch64-apple-darwin.tar.gz` on `latest`, `rules-hub-<version>-<triple>.tar.gz` in a release); run it
+again to update, `uninstall.sh` of the same page removes it (`sh uninstall.sh [--purge-settings]`). Linux is built on
+x86-64 (ubuntu 22.04); the macOS build (Apple silicon) is experimental: the CI builds, installs and uninstalls it, but
+it has not been started on a real Mac.
+
+**Windows:** the scripts need no administrator rights and install for one user, so they also work where SmartScreen stops a
 downloaded program. Run them in your own terminal (not elevated, not from inside a program that sandboxes AppData).
 The repository is public: the script is a plain download, with no GitHub login and no token:
 
@@ -175,7 +190,7 @@ of the lock files, and a file built on the machine carries no mark for SmartScre
 
 ```
 .\scripts\uninstall.ps1 [-PurgeSettings]
-sh scripts/uninstall.sh [--purge-settings]        # Linux/macOS, from source; not run by CI any more
+sh scripts/uninstall.sh [--purge-settings]        # Linux/macOS (also attached to every build as uninstall.sh)
 ```
 
 Uninstalling stops the hub, takes away the login entry and the link, and removes the program. Your settings stay

@@ -3,16 +3,21 @@
 # publishes.
 #
 # What it makes, for the hub (the native shell and its Setup come with the Tauri task):
-#   rules-hub-X.Y.Z-x86_64-pc-windows-msvc.zip   the program for Windows
-#   install.ps1                                  installs exactly this release for the current user
-#                                                (release-kit of appkit, stamped for this tag)
-#   uninstall.ps1                                the script of scripts/ at this tag
-#   SHA256SUMS                                   the checksums of all of them
+#   rules-hub-X.Y.Z-x86_64-pc-windows-msvc.zip      the program for Windows
+#   rules-hub-X.Y.Z-x86_64-unknown-linux-gnu.tar.gz the program for Linux (x86-64)
+#   rules-hub-X.Y.Z-aarch64-apple-darwin.tar.gz     the program for macOS on Apple silicon (experimental)
+#   install.ps1, install.sh                        install exactly this release for the current user
+#                                                  (release-kit of appkit, stamped for this tag)
+#   uninstall.ps1, uninstall.sh                    the scripts of scripts/ at this tag
+#   SHA256SUMS                                     the checksums of all of them
 #
-# Runs on the maintainer's self-hosted Windows runner (by choice, see docs/RELEASING.md), so only Windows is
-# built: the Linux and macOS archives and install.sh of the earlier hosted workflow are gone. Triggered only
-# by a pushed tag, never by a pull request. The release-kit actions run there by Git Bash (appkit v0.23.1 and
-# later). appkit is public and read without credentials.
+# Windows builds on the maintainer's self-hosted Windows runner (by choice, see docs/RELEASING.md); Linux
+# (ubuntu-22.04) and macOS (macos-latest, arm64) build on GitHub-hosted throw-away VMs in the job build-unix, the same
+# way as the rolling build. The macOS leg is experimental: the draft gets its archive when it is there, and a red
+# macOS build never holds back the others; a draft cut again over a red macOS build keeps an earlier macOS file of
+# the same tag (publish removes stale files only on the rolling build), so look at the list before publishing.
+# Triggered only by a pushed tag, never by a pull request. The release-kit actions run on the Windows runner by Git
+# Bash (appkit v0.23.1 and later). appkit is public and read without credentials.
 #
 # Before anything is built: the tag, the version in crates/rules-hub/Cargo.toml and the
 # main branch agree, and the CI of main was green for this very commit (NREL-08). The draft, its
@@ -143,10 +148,85 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # The draft (made here when there is none), the archive, the install script stamped for this tag,
-  # the uninstall script and the checksums of all of them.
+  # Linux and macOS on hosted throw-away VMs: the same program, packed as a tar.gz with the program at its top, as
+  # release-kit's install.sh (kind hub) expects it, and named by its triple, which install.sh picks by its system.
+  build-unix:
+    name: build-unix (${{ matrix.name }})
+    needs: check
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 40
+    # A red experimental leg leaves the job green, so publish still runs; its archive is then simply missing.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            runs-on: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            experimental: false
+          - name: macos
+            runs-on: macos-latest
+            triple: aarch64-apple-darwin
+            experimental: true
+    defaults:
+      run:
+        shell: bash --noprofile --norc -e -o pipefail {0}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          persist-credentials: false
+      - name: pnpm (a hosted runner has node, not pnpm)
+        run: npm install --global pnpm@10
+      # The interface is part of the binary (NREL-04): it is built first, then the program.
+      - name: Build the interface
+        working-directory: ui
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Build the program
+        run: cargo build --release --locked -p rules-hub
+      - name: Pack and check the archive
+        id: pack
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+          TRIPLE: ${{ matrix.triple }}
+        run: |
+          set -eu
+          rm -rf stage dist check stage.list
+          name="rules-hub-${VERSION}-${TRIPLE}.tar.gz"
+          mkdir -p stage dist check
+          cp target/release/rules-hub LICENSE stage/
+          chmod 755 stage/rules-hub
+          COPYFILE_DISABLE=1 tar -czf "dist/$name" -C stage .
+          # Listed into a file, not piped: `grep -q` stops at the first match, GNU tar then dies writing the next
+          # entry (SIGPIPE) and pipefail turns that into a failure.
+          tar -tzf "dist/$name" > stage.list
+          grep -qx "./rules-hub" stage.list
+          tar -xzf "dist/$name" -C check
+          got="$(check/rules-hub --version)"
+          if [ "$got" != "rules-hub ${VERSION}" ]; then
+            echo "::error::the program in the archive says '$got', the tag says $VERSION"
+            exit 1
+          fi
+          echo "file=dist/$name" >> "$GITHUB_OUTPUT"
+      # install.sh of release-kit and scripts/uninstall.sh against this very program, in a throw-away HOME.
+      - name: Install and uninstall on this system
+        run: sh scripts/test-install.sh target/release/rules-hub
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.name }}
+          path: ${{ steps.pack.outputs.file }}
+          if-no-files-found: error
+          retention-days: 3
+
+  # The draft (made here when there is none), the archives, the install scripts stamped for this tag,
+  # the uninstall scripts and the checksums of all of them.
   publish:
-    needs: [check, build]
+    needs: [check, build, build-unix]
+    # Also when the experimental macOS leg was cancelled (a timeout makes the matrix result `cancelled`); a failed
+    # Windows build or a failed required Unix leg stops here. "Which files are there" requires Windows and Linux.
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.build.result == 'success' && needs.build-unix.result != 'failure' }}
     runs-on: [self-hosted, windows]
     timeout-minutes: 15
     permissions:
@@ -162,17 +242,39 @@ jobs:
           pattern: release-*
           path: dist
           merge-multiple: true
+      # Windows and Linux are required; the archive of the experimental macOS leg goes up when it is there.
+      - name: Which files are there
+        id: files
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -eu
+          ls -la dist
+          test -f "dist/rules-hub-${VERSION}-x86_64-pc-windows-msvc.zip"
+          test -f "dist/rules-hub-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          count=2
+          if [ -f "dist/rules-hub-${VERSION}-aarch64-apple-darwin.tar.gz" ]; then
+            count=3
+          else
+            echo "::warning::no macOS archive in this run (experimental leg)"
+          fi
+          echo "count=$count" >> "$GITHUB_OUTPUT"
       - uses: WKDSteve/appkit/release-kit/publish@d466187d4871497bae161a26f092b185487cb489 # v0.84.1
         with:
           token: ${{ github.token }}
           tag: ${{ github.ref_name }}
           files: dist
-          expect: 1
+          expect: ${{ steps.files.outputs.count }}
           app: rules-desktop
           windows-kind: hub
           windows-program: rules-hub.exe
           windows-release-asset: rules-hub-{version}-{triple}.zip
           windows-rolling-asset: rules-hub-windows-x86_64.exe
+          unix-kind: hub
+          unix-program: rules-hub
+          unix-release-asset: rules-hub-{version}-{triple}.tar.gz
+          unix-rolling-asset: rules-hub-{triple}.tar.gz
           extra: |
             scripts/uninstall.ps1
+            scripts/uninstall.sh
           notes-file: .github/release-notes.md

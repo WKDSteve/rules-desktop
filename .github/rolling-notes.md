@@ -1,8 +1,16 @@
 **This is not a release.** It is the newest state of `main`, rebuilt after every green CI run and replaced each time. Nothing here is signed or tested by hand; use a release for anything that matters. The program reads the rule set and can make, change, retire, reinstate and move rules, with Undo and a conflict center; a rule set with no class on the device is never written.
 
-**Windows only** (x86-64). The files of this page are plain downloads: no GitHub login and no token.
+**Windows** (x86-64), **Linux** (x86-64) and **macOS** (Apple silicon, experimental: built and installed by the CI, never started on a real Mac). The files of this page are plain downloads: no GitHub login and no token.
 
-**Install it with the script** (for the current user, no administrator rights, and no SmartScreen stop: the script downloads the program itself and checks it against `SHA256SUMS`). In PowerShell (not elevated):
+**Linux and macOS:** install for the current user (no root; the script picks the archive of your system, checks it against `SHA256SUMS` and runs `rules-hub install`):
+
+```
+curl -fsSL https://github.com/WKDSteve/rules-desktop/releases/download/latest/install.sh | sh
+```
+
+Run it again to update. `uninstall.sh` removes it again. The archives are `rules-hub-x86_64-unknown-linux-gnu.tar.gz` and `rules-hub-aarch64-apple-darwin.tar.gz` (the program and its LICENSE); on macOS an archive downloaded by a browser is quarantined, the script's own download is not.
+
+**Windows: install it with the script** (for the current user, no administrator rights, and no SmartScreen stop: the script downloads the program itself and checks it against `SHA256SUMS`). In PowerShell (not elevated):
 
 ```
 irm https://github.com/WKDSteve/rules-desktop/releases/download/latest/install.ps1 -OutFile install.ps1

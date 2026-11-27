@@ -9,19 +9,21 @@ machine.
 | File | What |
 | ---- | ---- |
 | `rules-hub-X.Y.Z-x86_64-pc-windows-msvc.zip` | the program for Windows |
-| `install.ps1` | the install script of appkit's release-kit, stamped for this tag: it installs exactly this release |
-| `uninstall.ps1` | the script of `scripts/` at this tag |
+| `rules-hub-X.Y.Z-x86_64-unknown-linux-gnu.tar.gz` | the program for Linux (x86-64) |
+| `rules-hub-X.Y.Z-aarch64-apple-darwin.tar.gz` | the program for macOS on Apple silicon (experimental: missing when its build failed) |
+| `install.ps1`, `install.sh` | the install scripts of appkit's release-kit, stamped for this tag: they install exactly this release |
+| `uninstall.ps1`, `uninstall.sh` | the scripts of `scripts/` at this tag |
 | `SHA256SUMS` | the checksum of every file above |
 
-(Earlier plans had a Linux and a macOS archive, `install.sh` and `uninstall.sh`; they need hosted runners,
-and the builds run on a self-hosted Windows runner. See *The runner* below.)
+Windows builds on the self-hosted Windows runner, Linux and macOS on GitHub-hosted runners (job `build-unix`).
+See *The runner* below.
 
 The native shell with a Setup (`*-setup.exe`, and, if they return, `.dmg` and a Linux package) is the Tauri task; this
 workflow gets a `bundle` job when it exists. The scripts stay in any case: they are the way for a
 person without administrator rights or with a program that is not signed.
 
 The rolling build `latest` ([`rolling.yml`](../.github/workflows/rolling.yml)) carries the same
-script, stamped for `latest`, beside its Windows program. `rolling.yml` takes the actions `prepare`
+scripts, stamped for `latest`, beside its Windows program and its Linux and macOS archives. `rolling.yml` takes the actions `prepare`
 and `publish` of the release-kit, `release.yml` takes `publish` (its own `check` decides), both by
 the commit of the appkit tag that `Cargo.lock` pins; `tools/check-appkit-pin.py` fails when the two
 disagree, so a raised appkit tag raises them too.
@@ -38,7 +40,9 @@ disagree, so a raised appkit tag raises them too.
      release of the tag exists (`check`),
    - builds the interface and then the program for Windows, packs it, unpacks it again in
      another folder to ask it for its version, and runs the install script of the release-kit and
-     the uninstall script against it in a folder of their own (`build`, rule `NREL-12`),
+     the uninstall script against it in a folder of their own (`build`, rule `NREL-12`); the same for
+     Linux and macOS on hosted runners with `install.sh` (`build-unix`; macOS is experimental and may be
+     missing from the draft),
    - makes the draft with the notes of `.github/release-notes.md` (`{tag}` in them becomes the tag; the
      notes stay on the page when it is published, so they say nothing about being a draft) and adds the
      archive, the stamped install script, the uninstall script and `SHA256SUMS` (`publish`).
@@ -70,7 +74,8 @@ disagree, so a raised appkit tag raises them too.
 ## The rolling build
 
 After every green `ci` run on `main`, `rolling.yml` builds the program of exactly that commit (the
-interface first, then `cargo build --release --locked`) for Windows and replaces the files of
+interface first, then `cargo build --release --locked`) for Windows, Linux and macOS (experimental) and
+replaces the files of
 the pre-release `latest`. It is for looking at the newest state with a click, not a release: no
 version tag, not signed. `rules-hub --version` names the commit (`rules-hub 0.0.0 (build abc1234)`).
 Only the tip of `main` is built, and a newer tip replaces a build that is still running (a late CI run
@@ -99,15 +104,18 @@ kit) live in the repository [appkit](https://github.com/WKDSteve/appkit):
 
 ## The runner
 
-CI (`ci.yml`), the rolling build (`rolling.yml`) and the release (`release.yml`) all run on the maintainer's
-self-hosted Windows runner (`runs-on: [self-hosted, windows]`, Git Bash by its full path). That is a choice, not a
+CI (`ci.yml`), the rolling build (`rolling.yml`) and the release (`release.yml`) run on the maintainer's
+self-hosted Windows runner (`runs-on: [self-hosted, windows]`, Git Bash by its full path); only the Linux and macOS
+legs of the rolling build and the release run on GitHub-hosted runners. That is a choice, not a
 limit: the builds use the same Neovim, Chrome and toolchain the app is used with. Without a running runner a push or
 a tag stays "queued" (no red mark, discarded after 24 h).
 
 - The workflows start only on a push to `main`, a pushed tag, or a finished CI run of such a push. None of them has a
   `pull_request` or `pull_request_target` trigger: a pull request from a fork could change the workflow and run its
   code on the runner's machine. Fork pull requests also need the maintainer's approval before any workflow runs.
-- Only Windows is built and tested: there is no Linux or macOS archive and no `install.sh` any more.
+- Linux (`ubuntu-22.04`) and macOS (`macos-latest`, arm64, experimental) build on GitHub-hosted throw-away VMs,
+  which cost nothing for a public repository; each Unix leg runs `scripts/test-install.sh` on the program it built.
+  `tools/check-rolling-workflow.py` (a CI step) keeps their guards in both workflows.
 - The sources outside this repository (the engine at the pinned commits of `engine.lock`, appkit through Cargo and
   pnpm) are public and read without credentials. There is no token secret.
 - `release-kit` of appkit runs on the runner from v0.23.1 on (Git Bash by its full path); the apps pin it by the
