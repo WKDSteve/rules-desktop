@@ -14,8 +14,8 @@
 # Windows builds on the maintainer's self-hosted Windows runner (by choice, see docs/RELEASING.md); Linux
 # (ubuntu-22.04) and macOS (macos-latest, arm64) build on GitHub-hosted throw-away VMs in the job build-unix, the same
 # way as the rolling build. The macOS leg is experimental: the draft gets its archive when it is there, and a red
-# macOS build never holds back the others; a draft cut again over a red macOS build keeps an earlier macOS file of
-# the same tag (publish removes stale files only on the rolling build), so look at the list before publishing.
+# macOS build never holds back the others; a draft cut again over a red macOS build loses the macOS file of the
+# earlier cut (publish removes stale files only on the rolling build, so the step "Which files are there" does it).
 # Triggered only by a pushed tag, never by a pull request. The release-kit actions run on the Windows runner by Git
 # Bash (appkit v0.23.1 and later). appkit is public and read without credentials.
 #
@@ -242,21 +242,30 @@ jobs:
           pattern: release-*
           path: dist
           merge-multiple: true
-      # Windows and Linux are required; the archive of the experimental macOS leg goes up when it is there.
+      # Windows and Linux are required; the archive of the experimental macOS leg goes up when it is there. publish
+      # removes nothing from a release draft, so a draft cut again over a red macOS build would keep the macOS file
+      # of the earlier cut, which the new SHA256SUMS does not list: that file is taken off the draft here.
       - name: Which files are there
         id: files
         env:
           VERSION: ${{ needs.check.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           ls -la dist
-          test -f "dist/rules-hub-${VERSION}-x86_64-pc-windows-msvc.zip"
-          test -f "dist/rules-hub-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          test -f "dist/rules-hub-${VERSION}-x86_64-pc-windows-msvc.zip" || { echo "::error::no Windows archive"; exit 1; }
+          test -f "dist/rules-hub-${VERSION}-x86_64-unknown-linux-gnu.tar.gz" || { echo "::error::no Linux archive"; exit 1; }
+          mac="rules-hub-${VERSION}-aarch64-apple-darwin.tar.gz"
           count=2
-          if [ -f "dist/rules-hub-${VERSION}-aarch64-apple-darwin.tar.gz" ]; then
+          if [ -f "dist/$mac" ]; then
             count=3
           else
             echo "::warning::no macOS archive in this run (experimental leg)"
+            draft="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null || true)"
+            if [ "$draft" = "true" ]; then
+              gh release delete-asset "$GITHUB_REF_NAME" "$mac" --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null &&
+                echo "took the macOS archive of an earlier cut off the draft" || true
+            fi
           fi
           echo "count=$count" >> "$GITHUB_OUTPUT"
       - uses: WKDSteve/appkit/release-kit/publish@d466187d4871497bae161a26f092b185487cb489 # v0.84.1

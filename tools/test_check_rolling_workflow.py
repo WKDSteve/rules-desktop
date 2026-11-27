@@ -13,6 +13,14 @@ GOOD = """jobs:
   prepare:
     runs-on: ubuntu-latest
   build:
+    strategy:
+      matrix:
+        include:
+          - name: linux
+            runs-on: ubuntu-22.04
+            experimental: false
+          - name: macos
+            experimental: true
     steps:
       - run: |
           tar -tzf "dist/$ASSET" > stage.list
@@ -27,6 +35,9 @@ GOOD = """jobs:
       - uses: actions/download-artifact@x
         with:
           pattern: rolling-*-${{ needs.prepare.outputs.short }}
+      - run: |
+          test -f dist/rules-hub-windows-x86_64.exe
+          test -f dist/rules-hub-x86_64-unknown-linux-gnu.tar.gz
 """
 
 
@@ -68,6 +79,12 @@ RELEASE = """jobs:
   build:
     runs-on: [self-hosted, windows]
   build-unix:
+    strategy:
+      matrix:
+        include:
+          - name: linux
+            triple: x86_64-unknown-linux-gnu
+            experimental: false
     steps:
       - run: |
           tar -tzf "dist/$name" > stage.list
@@ -75,6 +92,11 @@ RELEASE = """jobs:
   publish:
     needs: [check, build, build-unix]
     if: ${{ !cancelled() && needs.check.result == 'success' && needs.build.result == 'success' && needs.build-unix.result != 'failure' }}
+    steps:
+      - run: |
+          test -f "dist/rules-hub-${VERSION}-x86_64-pc-windows-msvc.zip" || exit 1
+          test -f "dist/rules-hub-${VERSION}-x86_64-unknown-linux-gnu.tar.gz" || exit 1
+          gh release delete-asset "$GITHUB_REF_NAME" "$mac" --yes || true
 """
 
 
@@ -99,6 +121,72 @@ class CheckReleaseWorkflow(unittest.TestCase):
     def test_release_with_a_piped_listing(self):
         piped = RELEASE.replace('tar -tzf "dist/$name" > stage.list', 'tar -tzf "dist/$name" | grep -q x')
         self.assertTrue(any("piped into grep -q" in p for p in check.release_problems(piped)))
+
+    def test_release_publish_not_waiting_for_the_unix_legs(self):
+        found = check.release_problems(RELEASE.replace("needs: [check, build, build-unix]", "needs: [check, build]"))
+        self.assertIn("publish: it does not wait for build-unix (needs)", found)
+
+    def test_release_publish_without_a_green_windows_build(self):
+        found = check.release_problems(RELEASE.replace("needs.build.result == 'success' && ", ""))
+        self.assertIn("publish: its if lacks needs.build.result == 'success'", found)
+
+    def test_release_publish_joined_with_or(self):
+        found = check.release_problems(RELEASE.replace("!cancelled() && needs.check", "!cancelled() || needs.check"))
+        self.assertIn("publish: its if joins with || (every guard must hold)", found)
+
+    def test_release_without_the_linux_file_check(self):
+        text = RELEASE.replace('          test -f "dist/rules-hub-${VERSION}-x86_64-unknown-linux-gnu.tar.gz" || exit 1\n', "")
+        self.assertIn("publish: no test -f requires the Linux file", check.release_problems(text))
+
+    def test_release_with_an_experimental_linux_leg(self):
+        text = RELEASE.replace("triple: x86_64-unknown-linux-gnu\n            experimental: false",
+                               "triple: x86_64-unknown-linux-gnu\n            experimental: true")
+        self.assertIn("build-unix: the linux leg is not experimental: false", check.release_problems(text))
+
+    def test_release_keeping_a_stale_macos_file(self):
+        text = RELEASE.replace('          gh release delete-asset "$GITHUB_REF_NAME" "$mac" --yes || true\n', "")
+        self.assertTrue(any("delete-asset" in p for p in check.release_problems(text)))
+
+
+class CheckRollingRequiredLegs(unittest.TestCase):
+    def test_rolling_without_the_windows_file_check(self):
+        text = GOOD.replace("          test -f dist/rules-hub-windows-x86_64.exe\n", "")
+        self.assertIn("publish: no test -f requires the Windows file", check.problems(text))
+
+    def test_rolling_with_an_experimental_linux_leg(self):
+        text = GOOD.replace("runs-on: ubuntu-22.04\n            experimental: false",
+                            "runs-on: ubuntu-22.04\n            experimental: true")
+        self.assertIn("build: the linux leg is not experimental: false", check.problems(text))
+
+
+class CheckMain(unittest.TestCase):
+    def test_a_name_ending_in_release_yml_gets_the_rolling_rules(self):
+        import io, contextlib, tempfile, pathlib as p
+        with tempfile.TemporaryDirectory() as folder:
+            path = p.Path(folder) / "prerelease.yml"
+            path.write_text(GOOD, encoding="utf-8")
+            argv = check.sys.argv
+            check.sys.argv = ["x", str(path)]
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(check.main(), 0)
+            finally:
+                check.sys.argv = argv
+
+    def test_an_unreadable_path_does_not_hide_the_others(self):
+        import io, contextlib, tempfile, pathlib as p
+        with tempfile.TemporaryDirectory() as folder:
+            bad = p.Path(folder) / "rolling.yml"
+            bad.write_text(GOOD.replace("!cancelled() && ", ""), encoding="utf-8")
+            argv = check.sys.argv
+            check.sys.argv = ["x", str(p.Path(folder) / "missing.yml"), str(bad)]
+            out = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+                    self.assertEqual(check.main(), 2)
+            finally:
+                check.sys.argv = argv
+            self.assertIn("lacks !cancelled()", out.getvalue())
 
 
 if __name__ == "__main__":
