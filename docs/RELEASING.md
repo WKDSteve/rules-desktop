@@ -78,8 +78,8 @@ interface first, then `cargo build --release --locked`) for Windows, Linux and m
 replaces the files of
 the pre-release `latest`. It is for looking at the newest state with a click, not a release: no
 version tag, not signed. `rules-hub --version` names the commit (`rules-hub 0.0.0 (build abc1234)`).
-Only the tip of `main` is built, and a newer tip replaces a build that is still running (a late CI run
-of an older commit lands in a group of its own and builds nothing). The page of the release says what
+The newest green commit of `main` is built, and `latest` only moves forward: runs wait in one group and none
+is cancelled, and `prepare` builds nothing when the commit is not newer than the build that is up. The page of the release says what
 it is: `.github/rolling-notes.md`.
 
 ## The engine pin
