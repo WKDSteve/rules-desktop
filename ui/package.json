@@ -24,8 +24,8 @@
     "vitest": "^5.0.3"
   },
   "dependencies": {
-    "appkit-ui": "github:WKDSteve/appkit#v0.84.1&path:ui-kit",
-    "appkit-web": "github:WKDSteve/appkit#v0.84.1&path:web-kit",
+    "appkit-ui": "github:WKDSteve/appkit#v0.85.0&path:ui-kit",
+    "appkit-web": "github:WKDSteve/appkit#v0.85.0&path:web-kit",
     "markdown-it": "^15.0.3"
   },
   "browserslist": [
